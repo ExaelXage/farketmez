@@ -17,6 +17,7 @@ from routes.api import bp as api_bp
 app.register_blueprint(room_bp)
 app.register_blueprint(api_bp)
 
+models.init_db()
 
 # ── Socket.IO events ────────────────────────────────────────────────────────
 
