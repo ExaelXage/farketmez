@@ -365,6 +365,23 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
 .votes-remaining--low   { background: rgba(245,166,35,.15); color: var(--warning); }
 .votes-remaining--empty { background: rgba(255,79,79,.15);  color: var(--danger); }
 
+/* Mekan arama kutusu */
+.place-search-box { margin-bottom: .5rem; }
+.place-search-box input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: .4rem .75rem;
+  font-size: .85rem;
+  outline: none;
+  transition: border-color .15s;
+}
+.place-search-box input:focus { border-color: var(--accent); }
+.place-search-box input::placeholder { color: var(--text-muted); }
+
 /* Alt kategori filtre chips */
 .filter-bar {
   display: flex;

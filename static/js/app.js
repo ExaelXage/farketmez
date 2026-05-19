@@ -8,6 +8,7 @@ let   _votesUsed    = typeof VOTES_USED    !== "undefined" ? VOTES_USED    : 0;
 const _maxVotes     = typeof MAX_VOTES     !== "undefined" ? MAX_VOTES     : 3;
 const _roomCategory = typeof ROOM_CATEGORY !== "undefined" ? ROOM_CATEGORY : "food";
 let   _activeFilter = "all";   // aktif alt kategori filtresi
+let   _searchQuery  = "";      // mekan arama kutusu
 
 // Alt kategori filtre tanımları
 const _FILTERS = {
@@ -204,6 +205,10 @@ function renderPlaces(places) {
   if (header) header.style.display = "";
 
   places.forEach(p => { _placeData[p.id] = p; });
+
+  // Arama kutusunu sıfırla
+  const searchInput = document.getElementById("place-search");
+  if (searchInput) { searchInput.value = ""; _searchQuery = ""; }
 
   // Stagger entrance animation delay
   const html = places.map((p, i) => {
@@ -444,6 +449,11 @@ function filterPlaces(filterKey) {
   _applyCurrentFilter();
 }
 
+function searchPlaces(query) {
+  _searchQuery = query.toLowerCase().trim();
+  _applyCurrentFilter();
+}
+
 function _applyCurrentFilter() {
   const filters  = _FILTERS[_roomCategory] ?? _FILTERS.food;
   const filter   = filters.find(f => f.key === _activeFilter);
@@ -452,8 +462,11 @@ function _applyCurrentFilter() {
 
   let visible = 0;
   document.querySelectorAll(".place-card").forEach(card => {
-    const cat = card.dataset.category ?? "";
-    const show = allowAll || allowed.has(cat);
+    const cat  = card.dataset.category ?? "";
+    const name = (card.querySelector(".place-name-link")?.textContent ?? "").toLowerCase();
+    const matchesFilter = allowAll || allowed.has(cat);
+    const matchesSearch = !_searchQuery || name.includes(_searchQuery);
+    const show = matchesFilter && matchesSearch;
     card.style.display = show ? "" : "none";
     if (show) visible++;
 
