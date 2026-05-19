@@ -27,7 +27,7 @@ _OVERPASS_HEADERS = {
 
 OVERPASS_QUERIES = {
     "food": """
-[out:json][timeout:35];
+[out:json][timeout:25];
 (
   node["name"]["amenity"~"restaurant|cafe|fast_food|bar|pub|food_court|ice_cream|bakery|biergarten|juice_bar|canteen|diner|bbq|coffee_shop"](around:{radius},{lat},{lng});
   node["name"]["cuisine"](around:{radius},{lat},{lng});
@@ -37,7 +37,7 @@ OVERPASS_QUERIES = {
 out body center {limit};
 """,
     "activity": """
-[out:json][timeout:35];
+[out:json][timeout:25];
 (
   node["leisure"~"^(bowling_alley|escape_game|park|fitness_centre|sports_centre|golf_course|miniature_golf|amusement_arcade|swimming_pool|water_park|ice_rink)$"](around:{radius},{lat},{lng});
   node["amenity"~"^(cinema|theatre|nightclub|casino|arts_centre|community_centre)$"](around:{radius},{lat},{lng});
@@ -183,7 +183,7 @@ def _combined_search(lat, lng, radius, category):
             Config.OVERPASS_API_URL,
             data={"data": query},
             headers=_OVERPASS_HEADERS,
-            timeout=40,
+            timeout=28,
         )
         resp.raise_for_status()
         return resp.json().get("elements", [])
