@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block title %}{{ room.name }}'in Odası{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+{% endblock %}
+
+{% block content %}
+<div class="room-layout">
+
+  <!-- ── Sol panel ─────────────────────────────────────────────────────────── -->
+  <aside class="panel panel--side">
+
+    <button class="btn btn--secondary panel-toggle" id="panel-toggle"
+            onclick="toggleSidePanel()" aria-expanded="false">
+      <span>Bilgiler &amp; Katılımcılar</span>
+      <span class="panel-toggle-icon">&#9660;</span>
+    </button>
+
+    <div class="side-panel-body" id="side-panel-body">
+      <div class="card">
+        <h3>Oda Bilgisi</h3>
+        <p class="room-code">Kod: <strong>{{ room.code }}</strong></p>
+        <p>Kategori:
+          <strong>{{ "🍕 Yemek" if room.category == "food" else "🎳 Etkinlik" }}</strong>
+        </p>
+        <p>Durum:
+          <span id="room-status" class="badge badge--{{ room.status }}">
+            {{ {"waiting":"Bekliyor","voting":"Oylama","completed":"Tamamlandı"}.get(room.status, room.status) }}
+          </span>
+        </p>
+
+        <hr />
+
+        <h4>Davet Linki</h4>
+        <div class="invite-box">
+          <input type="text" id="invite-link" readonly
+                 value="{{ request.host_url }}room/{{ room.code }}" />
+          <button class="btn btn--sm btn--secondary" id="btn-copy" onclick="copyInvite()">
+            Kopyala
+          </button>
+        </div>
+
+        <hr />
+
+        <h4>Katılımcılar <span class="participant-count">({{ participants | length }})</span></h4>
+        <ul id="participants-list" class="participants">
+          {% for p in participants %}
+          <li class="participant {{ 'participant--me' if p.id == participant.id }}">
+            <span class="p-name">
+              {{ p.nickname }}{% if p.is_owner %} <span class="owner-crown">👑</span>{% endif %}
+            </span>
+            <span class="p-score" data-pid="{{ p.id }}">{{ p.score }} puan</span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+
+      {% if room.status != "completed" %}
+      <div class="card">
+        <h4>Konum Gönder</h4>
+        <p class="hint">Yakındaki mekanları bulmak için konumunu paylaş.</p>
+
+        <div class="radius-picker">
+          <span class="radius-label">Arama yarıçapı</span>
+          <div class="radius-options">
+            <label class="radius-opt"><input type="radio" name="radius" value="500" /><span>500m</span></label>
+            <label class="radius-opt"><input type="radio" name="radius" value="1000" /><span>1km</span></label>
+            <label class="radius-opt"><input type="radio" name="radius" value="2000" checked /><span>2km</span></label>
+            <label class="radius-opt"><input type="radio" name="radius" value="5000" /><span>5km</span></label>
+          </div>
+        </div>
+
+        <button id="btn-location" class="btn btn--secondary btn--full" onclick="sendLocation()">
+          📍 Konumumu Kullan
+        </button>
+        <p id="location-status" class="hint" role="status"></p>
+      </div>
+      {% endif %}
+    </div>
+  </aside>
+
+  <!-- ── Ana panel ──────────────────────────────────────────────────────────── -->
+  <section class="panel panel--main">
+
+    <!-- Harita -->
+    <div id="map" class="map-box{{ '' if room.status != 'waiting' else ' map-hidden' }}"
+         aria-label="Mekan haritası"></div>
+
+    <!-- Sonuç ekranı (completed) -->
+    {% if room.status == "completed" and vote_summary %}
+    <div class="card card--winner card--winner-glow" id="result-card">
+      <div class="result-header">
+        <span class="result-trophy">🏆</span>
+        <h2>Kazanan!</h2>
+      </div>
+      <div class="winner-place">
+        <h3>{{ vote_summary[0].name }}</h3>
+        <p class="place-address">{{ vote_summary[0].address }}</p>
+        <p class="score-big">{{ vote_summary[0].total_score }} net oy</p>
+      </div>
+      {% if vote_summary | length > 1 %}
+      <div class="result-ranking">
+        {% for place in vote_summary[1:4] %}
+        <div class="rank-row">
+          <span class="rank-num">{{ loop.index + 1 }}</span>
+          <span class="rank-name">{{ place.name }}</span>
+          <span class="rank-score">{{ place.total_score }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Mekanlar kartı -->
+    <div class="card">
+
+      <!-- Başlık: waiting'de gizli, her zaman DOM'da -->
+      <div class="places-header" id="places-header"
+           {% if room.status == "waiting" %}style="display:none"{% endif %}>
+        <div class="places-header-top">
+          <h3>Mekanlar <span class="place-count">({{ vote_summary | length }})</span></h3>
+          <div class="places-header-actions">
+            <span id="votes-remaining" class="votes-remaining"
+                  {% if room.status != "voting" %}style="display:none"{% endif %}></span>
+            <!-- Sadece oda sahibine göster -->
+            <button id="btn-finish" class="btn btn--danger btn--sm"
+                    onclick="finishVoting()"
+                    {% if room.status != "voting" or not participant.is_owner %}style="display:none"{% endif %}>
+              Oylamayı Bitir
+            </button>
+          </div>
+        </div>
+        <div id="filter-bar" class="filter-bar"></div>
+      </div>
+
+      <!-- Bekleme boş hali -->
+      {% if room.status == "waiting" %}
+      <div class="empty-state" id="waiting-state">
+        <div class="empty-icon">🗺️</div>
+        <h3>Konum bekleniyor…</h3>
+        <p class="hint">Birisi "Konumumu Kullan"a basınca mekanlar burada belirecek.</p>
+        <div class="waiting-dots"><span></span><span></span><span></span></div>
+      </div>
+      {% endif %}
+
+      <!-- Mekan listesi -->
+      <div id="places-list" class="places">
+        {% if room.status in ("voting", "completed") %}
+          {% for place in vote_summary %}
+          <div class="place-card" id="place-{{ place.id }}"
+               data-lat="{{ place.lat }}" data-lng="{{ place.lng }}"
+               data-category="{{ place.category }}">
+            <div class="place-info">
+              <h4 class="place-name-link"
+                  onclick="panToPlace({{ place.id }}, {{ place.lat | tojson }}, {{ place.lng | tojson }})">
+                {{ place.name }}
+              </h4>
+              <p class="place-address">{{ place.address }}</p>
+              <div class="place-score">
+                <span class="likes">👍 {{ place.likes }}</span>
+                <span class="dislikes">👎 {{ place.dislikes }}</span>
+                <span class="net">Net: {{ place.total_score }}</span>
+              </div>
+            </div>
+            {% if room.status == "voting" %}
+            <div class="vote-actions">
+              <button class="btn btn--vote btn--like {{ 'active' if my_votes.get(place.id) == 1 }}"
+                      onclick="castVote({{ place.id }}, 1)"
+                      {{ "disabled" if place.id in my_votes or (my_votes|length) >= max_votes }}>👍</button>
+              <button class="btn btn--vote btn--dislike {{ 'active' if my_votes.get(place.id) == -1 }}"
+                      onclick="castVote({{ place.id }}, -1)"
+                      {{ "disabled" if place.id in my_votes or (my_votes|length) >= max_votes }}>👎</button>
+            </div>
+            {% endif %}
+          </div>
+          {% else %}
+          <div class="empty-state empty-state--sm" id="no-places-msg">
+            <p class="hint">Konumunu gönderdikten sonra mekanlar burada görünecek.</p>
+          </div>
+          {% endfor %}
+        {% endif %}
+      </div>
+
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  const ROOM_CODE      = "{{ room.code }}";
+  const ROOM_STATUS    = "{{ room.status }}";
+  const ROOM_LAT       = {{ room.lat | tojson }};
+  const ROOM_LNG       = {{ room.lng | tojson }};
+  const INITIAL_PLACES = {{ vote_summary | tojson }};
+  const MY_VOTES       = {{ my_votes | tojson }};
+  const MAX_VOTES      = {{ max_votes }};
+  const VOTES_USED     = {{ my_votes | length }};
+  const ROOM_CATEGORY  = "{{ room.category }}";
+  const IS_OWNER       = {{ participant.is_owner | tojson }};
+</script>
+{% endblock %}

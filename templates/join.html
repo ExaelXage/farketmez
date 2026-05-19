@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Odaya Katıl — {{ room.name }}{% endblock %}
+
+{% block content %}
+<div class="card card--join">
+  <h2>{{ room.name }}'in odasına katıl</h2>
+  <p class="subtitle">Kategori: <strong>{{ "Yemek" if room.category == "food" else "Etkinlik" }}</strong></p>
+
+  <form action="/room/{{ code }}/join" method="POST" class="create-form">
+    <div class="form-group">
+      <label for="nickname">Takma adın</label>
+      <input type="text" id="nickname" name="nickname" placeholder="Örn: burger_krali"
+             maxlength="32" required autocomplete="off" />
+    </div>
+    <button type="submit" class="btn btn--primary btn--full">Katıl →</button>
+  </form>
+</div>
+{% endblock %}
