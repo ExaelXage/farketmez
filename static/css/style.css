@@ -648,24 +648,27 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
 
 /* ===== Mobile ===== */
 @media (max-width: 700px) {
-  .container { margin: 1rem auto; padding: 0 .75rem; }
+  .container { margin: .5rem auto; padding: 0 .6rem; }
 
   .room-layout {
     grid-template-columns: 1fr;
-    gap: .6rem;
-    padding-bottom: 2rem;
+    gap: .5rem;
+    padding-bottom: 1.5rem;
   }
 
   /* Ana panel üste, yan panel alta */
   .panel--main { order: 1; }
   .panel--side { order: 2; }
 
+  /* Panel toggle butonu */
   .panel-toggle {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: .65rem .9rem;
+    padding: .75rem 1rem;
     width: 100%;
+    font-size: .95rem;
+    min-height: 48px;
   }
   .panel-toggle-icon {
     transition: transform .25s;
@@ -676,14 +679,27 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
   .panel-toggle[aria-expanded="true"]  .panel-toggle-icon { transform: rotate(180deg); }
   .panel-toggle[aria-expanded="true"]  + .side-panel-body { display: flex; }
 
-  .map-box  { height: 240px; }
-  .card     { padding: 1rem; }
+  /* Harita ve kartlar */
+  .map-box { height: 220px; }
+  .card    { padding: .85rem; }
 
-  .place-card   { flex-wrap: wrap; }
-  .vote-actions { width: 100%; justify-content: flex-end; margin-top: .5rem; }
-  .btn--vote    { padding: .55rem 1.2rem; font-size: 1.4rem; min-width: 56px; min-height: 44px; }
+  /* Header */
+  .site-header { padding: .6rem 1rem; }
+  .site-header .tagline { display: none; }
+  .logo { font-size: 1.2rem; }
 
-  /* Filter chips: horizontal scroll instead of wrapping */
+  /* Hero */
+  .card--hero h1     { font-size: 1.45rem; }
+  .card--hero .subtitle { font-size: .9rem; }
+
+  /* Mekan kartları */
+  .place-card   { flex-wrap: wrap; gap: .4rem; }
+  .place-info   { flex: 1; min-width: 0; }
+  .place-name-link { font-size: .95rem; }
+  .vote-actions { width: 100%; justify-content: flex-end; padding-top: .25rem; border-top: 1px solid var(--border); }
+  .btn--vote    { flex: 1; padding: .65rem 0; font-size: 1.3rem; min-height: 48px; }
+
+  /* Filtre chips yatay scroll */
   .filter-bar {
     flex-wrap: nowrap;
     overflow-x: auto;
@@ -692,18 +708,40 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
     padding-bottom: 2px;
   }
   .filter-bar::-webkit-scrollbar { display: none; }
-  .filter-chip { flex-shrink: 0; padding: .3rem .8rem; }
+  .filter-chip { flex-shrink: 0; padding: .35rem .9rem; font-size: .82rem; }
 
-  /* Winner card compact */
-  .winner-place h3   { font-size: 1.3rem; }
-  .winner-place .score-big { font-size: 1.8rem; }
-  .result-ranking    { margin-top: .75rem; }
+  /* Mekan arama kutusu */
+  .place-search-box input { font-size: .9rem; padding: .5rem .75rem; }
 
-  .site-header .tagline { display: none; }
-
-  .card--hero h1 { font-size: 1.5rem; }
-
-  /* Ensure vote counter wraps nicely on small screens */
-  .places-header-top { flex-wrap: wrap; gap: .4rem; }
+  /* Oy sayacı ve butonlar */
+  .places-header-top    { flex-wrap: wrap; gap: .4rem; }
   .places-header-actions { flex-wrap: wrap; }
+  .btn--sm { min-height: 36px; padding: .35rem .75rem; }
+
+  /* Sonuç ekranı */
+  .winner-name  { font-size: 1.5rem; }
+  .score-big    { font-size: 1.3rem; }
+  .result-trophy { font-size: 2rem; }
+  .result-header h2 { font-size: 1.5rem; }
+  .result-section-title { margin-top: .75rem; }
+
+  /* Puan tablosu */
+  .card--score-log { font-size: .85rem; }
+  .sle-breakdown   { font-size: .8rem; }
+
+  /* Radius seçici */
+  .radius-options { gap: .35rem; }
+  .radius-opt span { padding: .35rem .6rem; font-size: .82rem; }
+
+  /* Davet kutusu */
+  .invite-box { flex-wrap: wrap; gap: .4rem; }
+  .invite-box input { min-width: 0; flex: 1; font-size: .8rem; }
+}
+
+/* Çok küçük ekranlar (≤380px) */
+@media (max-width: 380px) {
+  .card { padding: .7rem; }
+  .winner-name { font-size: 1.25rem; }
+  .btn--vote { font-size: 1.1rem; }
+  .card--hero h1 { font-size: 1.2rem; }
 }
