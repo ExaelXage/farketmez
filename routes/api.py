@@ -29,20 +29,24 @@ OVERPASS_QUERIES = {
     "food": """
 [out:json][timeout:25];
 (
-  node["name"]["amenity"~"restaurant|cafe|fast_food|bar|pub|food_court|ice_cream|bakery|biergarten|juice_bar|canteen|diner|bbq|coffee_shop"](around:{radius},{lat},{lng});
+  node["name"]["amenity"~"^(restaurant|cafe|fast_food|bar|pub|food_court|ice_cream|bakery|biergarten|juice_bar|canteen|diner|bbq|coffee_shop|lokanta|kebab_shop|nargile_cafe|hookah_lounge|patisserie|confectionery)$"](around:{radius},{lat},{lng});
   node["name"]["cuisine"](around:{radius},{lat},{lng});
-  node["name"]["shop"~"bakery|pastry|deli|beverages|confectionery"](around:{radius},{lat},{lng});
-  way["name"]["amenity"~"restaurant|cafe|fast_food|bar|pub|food_court|ice_cream|bakery|biergarten|canteen"](around:{radius},{lat},{lng});
+  node["name"]["shop"~"^(bakery|pastry|deli|beverages|confectionery|food|butcher|cheese|chocolate|coffee|tea|wine|spices)$"](around:{radius},{lat},{lng});
+  way["name"]["amenity"~"^(restaurant|cafe|fast_food|bar|pub|food_court|ice_cream|bakery|biergarten|canteen|lokanta|kebab_shop|nargile_cafe)$"](around:{radius},{lat},{lng});
+  way["name"]["cuisine"](around:{radius},{lat},{lng});
+  way["name"]["shop"~"^(bakery|pastry|food|confectionery)$"](around:{radius},{lat},{lng});
 );
 out body center {limit};
 """,
     "activity": """
 [out:json][timeout:25];
 (
-  node["leisure"~"^(bowling_alley|escape_game|park|fitness_centre|sports_centre|golf_course|miniature_golf|amusement_arcade|swimming_pool|water_park|ice_rink)$"](around:{radius},{lat},{lng});
-  node["amenity"~"^(cinema|theatre|nightclub|casino|arts_centre|community_centre)$"](around:{radius},{lat},{lng});
-  way["leisure"~"^(park|fitness_centre|sports_centre|swimming_pool|stadium|water_park)$"](around:{radius},{lat},{lng});
-  way["amenity"~"^(cinema|theatre)$"](around:{radius},{lat},{lng});
+  node["name"]["leisure"~"^(bowling_alley|escape_game|park|fitness_centre|sports_centre|golf_course|miniature_golf|amusement_arcade|swimming_pool|water_park|ice_rink|playground|garden|beach_resort|sports_hall|dance)$"](around:{radius},{lat},{lng});
+  node["name"]["amenity"~"^(cinema|theatre|nightclub|casino|arts_centre|community_centre|events_venue|conference_centre|planetarium)$"](around:{radius},{lat},{lng});
+  node["name"]["tourism"~"^(attraction|theme_park|zoo|museum|gallery|aquarium)$"](around:{radius},{lat},{lng});
+  way["name"]["leisure"~"^(park|fitness_centre|sports_centre|swimming_pool|stadium|water_park|garden|sports_hall|pitch|beach_resort)$"](around:{radius},{lat},{lng});
+  way["name"]["amenity"~"^(cinema|theatre|nightclub|events_venue|arts_centre)$"](around:{radius},{lat},{lng});
+  way["name"]["tourism"~"^(attraction|theme_park|zoo|museum|gallery|aquarium)$"](around:{radius},{lat},{lng});
 );
 out body center {limit};
 """,
@@ -167,7 +171,7 @@ def _fetch_foursquare(lat, lng, radius, category):
 
 # ── Konum & Mekan arama ─────────────────────────────────────────────────────
 
-_MIN_PLACES    = 10
+_MIN_PLACES    = 15
 _EXPAND_RADII  = [5_000, 10_000, 20_000]  # otomatik genişleme adımları
 
 
@@ -233,7 +237,7 @@ def _combined_search(lat, lng, radius, category):
         places.append({
             "osm_id":   str(el.get("id", "")),
             "name":     name,
-            "category": tags.get("amenity") or tags.get("leisure") or category,
+            "category": tags.get("amenity") or tags.get("leisure") or tags.get("tourism") or tags.get("shop") or category,
             "lat": elat, "lng": elng,
             "address": address,
         })
@@ -273,14 +277,18 @@ def search_places(code):
     places, overpass_error = _combined_search(lat, lng, radius, room["category"])
     actual_radius = radius
 
-    # Yeterli mekan yoksa radius'u otomatik genişlet
+    # Yeterli mekan yoksa radius'u otomatik genişlet — yeni sonuçları eskiye ekle
+    existing_ids = {p["osm_id"] for p in places}
     for next_r in _EXPAND_RADII:
         if len(places) >= _MIN_PLACES or next_r <= radius:
             continue
         print(f"[Search] {len(places)} mekan < {_MIN_PLACES}, genisletiliyor: {actual_radius}m -> {next_r}m")
         expanded, err = _combined_search(lat, lng, next_r, room["category"])
         actual_radius = next_r
-        places = expanded
+        for p in expanded:
+            if p["osm_id"] not in existing_ids:
+                places.append(p)
+                existing_ids.add(p["osm_id"])
         if err and not overpass_error:
             overpass_error = err
         if len(places) >= _MIN_PLACES:

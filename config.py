@@ -13,7 +13,7 @@ class Config:
     FOURSQUARE_API_URL    = "https://places-api.foursquare.com/places/search"
     FOURSQUARE_API_KEY    = os.getenv("FOURSQUARE_API_KEY", "")
     SEARCH_RADIUS_METERS  = 2000
-    MAX_PLACES_PER_QUERY  = 150
+    MAX_PLACES_PER_QUERY  = 200
     ALLOWED_RADII         = {500, 1000, 2000, 5000}
 
     # Oylama
