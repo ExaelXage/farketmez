@@ -208,7 +208,7 @@ def _combined_search(lat, lng, radius, category):
 
         fsq_places = fut_fsq.result()
 
-    print(f"[Foursquare] radius={radius}m → {len(fsq_places)} mekan")
+    print(f"[Foursquare] radius={radius}m -> {len(fsq_places)} mekan")
 
     seen, places = set(), []
     for el in overpass_elements:
@@ -248,7 +248,7 @@ def _combined_search(lat, lng, radius, category):
             places.append(fp)
             existing_names.add(fp["name"].lower())
 
-    print(f"[Search] radius={radius}m → Overpass:{len(overpass_elements)} FSQ:{len(fsq_places)} toplam:{len(places)}")
+    print(f"[Search] radius={radius}m -> Overpass:{len(overpass_elements)} FSQ:{len(fsq_places)} toplam:{len(places)}")
     return places, overpass_error
 
 
