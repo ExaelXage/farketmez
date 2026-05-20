@@ -382,4 +382,25 @@ def finish(code):
         "participants": participants, "score_log": score_log,
     }, to=code)
 
-    return jsonify({"ok": True, "winner": winner, "summary": summary, "score_log": score_log})
+    return jsonify({
+        "ok": True, "winner": winner, "summary": summary,
+        "participants": participants, "score_log": score_log,
+    })
+
+
+@bp.route("/room/<code>/results")
+def room_results(code):
+    room = models.get_room(code)
+    if not room:
+        return jsonify({"error": "Oda bulunamadı"}), 404
+    if room["status"] != "completed":
+        return jsonify({"completed": False}), 200
+    summary      = [dict(r) for r in models.get_vote_summary(room["id"])]
+    participants = [dict(p) for p in models.get_room_participants(room["id"])]
+    winner       = summary[0] if summary else None
+    return jsonify({
+        "completed":    True,
+        "winner":       winner,
+        "summary":      summary,
+        "participants": participants,
+    })

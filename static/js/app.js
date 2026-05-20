@@ -7,8 +7,9 @@ let   _roomStatus   = typeof ROOM_STATUS   !== "undefined" ? ROOM_STATUS   : "wa
 let   _votesUsed    = typeof VOTES_USED    !== "undefined" ? VOTES_USED    : 0;
 const _maxVotes     = typeof MAX_VOTES     !== "undefined" ? MAX_VOTES     : 3;
 const _roomCategory = typeof ROOM_CATEGORY !== "undefined" ? ROOM_CATEGORY : "food";
-let   _activeFilter = "all";   // aktif alt kategori filtresi
-let   _searchQuery  = "";      // mekan arama kutusu
+let   _activeFilter  = "all";   // aktif alt kategori filtresi
+let   _searchQuery   = "";      // mekan arama kutusu
+let   _resultsShown  = ROOM_STATUS === "completed";
 
 // Alt kategori filtre tanımları
 const _FILTERS = {
@@ -55,13 +56,9 @@ if (typeof ROOM_CODE !== "undefined") {
   });
 
   socket.on("show_results", ({ winner, summary, participants, score_log }) => {
-    setBadge("Tamamlandı", "completed");
-    _hideVotingControls();
-    if (summary)      { renderSummary(summary); updateMarkersFromSummary(summary); }
-    if (participants) updateParticipantsList(participants);
-    if (winner) { showWinnerBanner(winner, summary ?? [], participants ?? []); highlightWinnerMarker(winner.id); }
-    if (score_log && score_log.length) showScoreLog(score_log);
-    showToast("Oylama tamamlandi!");
+    if (_resultsShown) return;
+    _resultsShown = true;
+    _showResults(winner, summary ?? [], participants ?? [], score_log ?? []);
   });
 
   // Seed client-side state from server-rendered data
@@ -84,7 +81,10 @@ if (typeof ROOM_CODE !== "undefined") {
     if (_votesUsed >= _maxVotes) _disableAllUnvotedButtons();
   }
 
-  if (ROOM_STATUS !== "completed") setInterval(refreshStatus, 10000);
+  if (ROOM_STATUS !== "completed") {
+    setInterval(refreshStatus, 10000);
+    setInterval(pollResults, 3000);
+  }
 }
 
 // ── Location ───────────────────────────────────────────────────────────────
@@ -173,7 +173,11 @@ async function finishVoting() {
   const btn = document.getElementById("btn-finish");
   setLoading(btn, true);
   try {
-    await apiFetch(`/api/room/${ROOM_CODE}/finish`, "POST", {});
+    const res = await apiFetch(`/api/room/${ROOM_CODE}/finish`, "POST", {});
+    if (!_resultsShown) {
+      _resultsShown = true;
+      _showResults(res.winner, res.summary ?? [], res.participants ?? [], res.score_log ?? []);
+    }
   } catch (e) {
     setLoading(btn, false);
     showToast("Hata: " + e.message);
@@ -389,6 +393,27 @@ function showWinnerBanner(winner, summary = [], participants = []) {
     main.prepend(banner);
     setTimeout(() => banner.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
   }
+}
+
+function _showResults(winner, summary, participants, scoreLog) {
+  setBadge("Tamamlandi", "completed");
+  _hideVotingControls();
+  if (summary && summary.length)      { renderSummary(summary); updateMarkersFromSummary(summary); }
+  if (participants && participants.length) updateParticipantsList(participants);
+  if (winner) { showWinnerBanner(winner, summary ?? [], participants ?? []); highlightWinnerMarker(winner.id); }
+  if (scoreLog && scoreLog.length) showScoreLog(scoreLog);
+  showToast("Oylama tamamlandi!");
+}
+
+async function pollResults() {
+  if (_resultsShown) return;
+  try {
+    const res = await apiFetch(`/api/room/${ROOM_CODE}/results`, "GET");
+    if (res.completed && !_resultsShown) {
+      _resultsShown = true;
+      _showResults(res.winner, res.summary ?? [], res.participants ?? [], []);
+    }
+  } catch (_) {}
 }
 
 async function refreshStatus() {
