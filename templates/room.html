@@ -95,17 +95,33 @@
         <h2>Kazanan!</h2>
       </div>
       <div class="winner-place">
-        <h3>{{ vote_summary[0].name }}</h3>
+        <div class="winner-name">{{ vote_summary[0].name }}</div>
         <p class="place-address">{{ vote_summary[0].address }}</p>
-        <p class="score-big">{{ vote_summary[0].total_score }} net oy</p>
+        <p class="score-big">{{ "%+d"|format(vote_summary[0].total_score) }} net oy</p>
       </div>
+
       {% if vote_summary | length > 1 %}
+      <div class="result-section-title">Mekan Sıralaması</div>
       <div class="result-ranking">
         {% for place in vote_summary[1:4] %}
         <div class="rank-row">
           <span class="rank-num">{{ loop.index + 1 }}</span>
           <span class="rank-name">{{ place.name }}</span>
-          <span class="rank-score">{{ place.total_score }}</span>
+          <span class="rank-score">{{ "%+d"|format(place.total_score) }} oy</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if participants %}
+      {% set sorted_parts = participants | sort(attribute='score', reverse=True) %}
+      <div class="result-section-title">Katılımcı Sıralaması</div>
+      <div class="result-ranking">
+        {% for p in sorted_parts %}
+        <div class="rank-row">
+          <span class="rank-num">{{ ["🥇","🥈","🥉"][loop.index0] if loop.index0 < 3 else loop.index }}</span>
+          <span class="rank-name">{{ p.nickname }}{% if p.is_owner %} 👑{% endif %}</span>
+          <span class="rank-score">{{ p.score }} puan</span>
         </div>
         {% endfor %}
       </div>

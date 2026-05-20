@@ -614,28 +614,37 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
   gap: .6rem;
   margin-bottom: 1rem;
 }
-.result-trophy { font-size: 2rem; }
-.result-header h2 { color: var(--warning); font-size: 1.6rem; }
+.result-trophy { font-size: 2.4rem; }
+.result-header h2 { color: var(--warning); font-size: 1.8rem; font-weight: 800; }
 
+.winner-place { text-align: center; padding: .75rem 0 .5rem; }
+.winner-name  {
+  font-size: 2rem; font-weight: 800; color: var(--text);
+  line-height: 1.2; margin-bottom: .35rem;
+}
+.score-big { font-size: 1.5rem; font-weight: 700; color: var(--success); margin-top: .25rem; }
+
+.result-section-title {
+  font-size: .72rem; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text-muted);
+  margin: 1rem 0 .4rem;
+}
 .result-ranking {
-  margin-top: 1rem;
-  border-top: 1px solid var(--border);
-  padding-top: .75rem;
   display: flex;
   flex-direction: column;
-  gap: .35rem;
+  gap: .3rem;
 }
 .rank-row {
   display: flex;
   align-items: center;
   gap: .65rem;
-  padding: .3rem .5rem;
+  padding: .35rem .6rem;
   border-radius: 6px;
   background: var(--surface2);
 }
-.rank-num   { font-size: .85rem; font-weight: 800; color: var(--text-muted); min-width: 1.4rem; text-align: center; }
+.rank-num   { font-size: .9rem; font-weight: 800; color: var(--text-muted); min-width: 1.6rem; text-align: center; }
 .rank-name  { flex: 1; font-size: .9rem; font-weight: 600; }
-.rank-score { font-size: .85rem; font-weight: 700; color: var(--accent); }
+.rank-score { font-size: .85rem; font-weight: 700; color: var(--accent); white-space: nowrap; }
 
 /* ===== Mobile ===== */
 @media (max-width: 700px) {

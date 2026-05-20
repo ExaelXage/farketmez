@@ -59,14 +59,9 @@ if (typeof ROOM_CODE !== "undefined") {
     _hideVotingControls();
     if (summary)      { renderSummary(summary); updateMarkersFromSummary(summary); }
     if (participants) updateParticipantsList(participants);
-    if (winner) { showWinnerBanner(winner, summary ?? []); highlightWinnerMarker(winner.id); }
+    if (winner) { showWinnerBanner(winner, summary ?? [], participants ?? []); highlightWinnerMarker(winner.id); }
     if (score_log && score_log.length) showScoreLog(score_log);
-    // On mobile: expand side panel so participants ranking is visible
-    const toggle = document.getElementById("panel-toggle");
-    if (toggle && toggle.offsetParent !== null) {
-      toggle.setAttribute("aria-expanded", "true");
-    }
-    showToast("🏆 Oylama tamamlandı!");
+    showToast("Oylama tamamlandi!");
   });
 
   // Seed client-side state from server-rendered data
@@ -338,7 +333,7 @@ function updateParticipantsList(participants) {
   if (counter) counter.textContent = `(${participants.length})`;
 }
 
-function showWinnerBanner(winner, summary = []) {
+function showWinnerBanner(winner, summary = [], participants = []) {
   const existing = document.getElementById("result-card");
   if (existing) {
     existing.classList.add("card--winner-glow");
@@ -346,14 +341,30 @@ function showWinnerBanner(winner, summary = []) {
     return;
   }
 
+  // Mekan sıralaması (2.–4. yer)
   const runners = summary.slice(1, 4);
-  const rankingHtml = runners.length ? `
+  const placeRankingHtml = runners.length ? `
+    <div class="result-section-title">Mekan Sıralaması</div>
     <div class="result-ranking">
       ${runners.map((p, i) => `
         <div class="rank-row">
           <span class="rank-num">${i + 2}</span>
           <span class="rank-name">${esc(p.name)}</span>
-          <span class="rank-score">${p.total_score}</span>
+          <span class="rank-score">${p.total_score > 0 ? "+" : ""}${p.total_score} oy</span>
+        </div>`).join("")}
+    </div>` : "";
+
+  // Katılımcı sıralaması (puana göre)
+  const sortedParts = [...participants].sort((a, b) => b.score - a.score);
+  const medals = ["🥇", "🥈", "🥉"];
+  const partRankingHtml = sortedParts.length ? `
+    <div class="result-section-title">Katilimci Siralamasi</div>
+    <div class="result-ranking">
+      ${sortedParts.map((p, i) => `
+        <div class="rank-row">
+          <span class="rank-num">${medals[i] ?? i + 1}</span>
+          <span class="rank-name">${esc(p.nickname)}${p.is_owner ? " 👑" : ""}</span>
+          <span class="rank-score">${p.score} puan</span>
         </div>`).join("")}
     </div>` : "";
 
@@ -366,11 +377,12 @@ function showWinnerBanner(winner, summary = []) {
       <h2>Kazanan!</h2>
     </div>
     <div class="winner-place">
-      <h3>${esc(winner.name)}</h3>
-      <p class="place-address">${esc(winner.address)}</p>
-      <p class="score-big">${winner.total_score} net oy</p>
+      <div class="winner-name">${esc(winner.name)}</div>
+      <p class="place-address">${esc(winner.address ?? "")}</p>
+      <p class="score-big">${winner.total_score > 0 ? "+" : ""}${winner.total_score} net oy</p>
     </div>
-    ${rankingHtml}
+    ${placeRankingHtml}
+    ${partRankingHtml}
   `;
   const main = document.querySelector(".panel--main");
   if (main) {
