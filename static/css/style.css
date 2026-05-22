@@ -654,6 +654,55 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
 .rank-name  { flex: 1; font-size: .9rem; font-weight: 600; }
 .rank-score { font-size: .85rem; font-weight: 700; color: var(--accent); white-space: nowrap; }
 
+/* ===== Nasıl çalışır? ===== */
+.how-it-works {
+  max-width: 480px;
+  margin: 1.75rem auto 0;
+}
+.how-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 1rem;
+  color: var(--text-muted);
+  letter-spacing: .03em;
+}
+.steps {
+  display: flex;
+  gap: .85rem;
+}
+.step {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem .85rem;
+  text-align: center;
+}
+.step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 50%;
+  background: var(--gradient);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 800;
+  margin-bottom: .6rem;
+}
+.step-title {
+  font-size: .9rem;
+  font-weight: 700;
+  margin-bottom: .3rem;
+}
+.step-desc {
+  font-size: .78rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
 /* ===== Mobile ===== */
 @media (max-width: 700px) {
   .container { margin: .5rem auto; padding: 0 .6rem; }
@@ -692,20 +741,27 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
   .card    { padding: .85rem; }
 
   /* Header */
-  .site-header { padding: .6rem 1rem; }
+  .site-header { padding: .6rem 1rem; gap: .6rem; }
   .site-header .tagline { display: none; }
   .logo { font-size: 1.2rem; }
 
   /* Hero */
-  .card--hero h1     { font-size: 1.45rem; }
+  .card--hero h1        { font-size: 1.45rem; }
   .card--hero .subtitle { font-size: .9rem; }
 
+  /* Nasıl çalışır — dar ekranda tek kolon */
+  .steps { flex-direction: column; gap: .6rem; }
+  .how-it-works { margin-top: 1.25rem; }
+
   /* Mekan kartları */
-  .place-card   { flex-wrap: wrap; gap: .4rem; }
-  .place-info   { flex: 1; min-width: 0; }
+  .place-card      { flex-wrap: wrap; gap: .4rem; }
+  .place-info      { flex: 1; min-width: 0; }
   .place-name-link { font-size: .95rem; }
-  .vote-actions { width: 100%; justify-content: flex-end; padding-top: .25rem; border-top: 1px solid var(--border); }
-  .btn--vote    { flex: 1; padding: .65rem 0; font-size: 1.3rem; min-height: 48px; }
+  .vote-actions    {
+    width: 100%; justify-content: flex-end;
+    padding-top: .25rem; border-top: 1px solid var(--border);
+  }
+  .btn--vote { flex: 1; padding: .65rem 0; font-size: 1.3rem; min-height: 48px; }
 
   /* Filtre chips yatay scroll */
   .filter-bar {
@@ -718,12 +774,12 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
   .filter-bar::-webkit-scrollbar { display: none; }
   .filter-chip { flex-shrink: 0; padding: .35rem .9rem; font-size: .82rem; }
 
-  /* Mekan arama kutusu */
-  .place-search-box input { font-size: .9rem; padding: .5rem .75rem; }
+  /* Mekan arama — iOS zoom önleme (16px altı font zoom tetikler) */
+  .place-search-box input { font-size: 16px; padding: .5rem .75rem; }
 
   /* Oy sayacı ve butonlar */
-  .places-header-top    { flex-wrap: wrap; gap: .4rem; }
-  .places-header-actions { flex-wrap: wrap; }
+  .places-header-top     { flex-wrap: wrap; gap: .4rem; }
+  .places-header-actions { flex-wrap: wrap; gap: .35rem; }
   .btn--sm { min-height: 36px; padding: .35rem .75rem; }
 
   /* Sonuç ekranı */
@@ -739,17 +795,30 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
 
   /* Radius seçici */
   .radius-options { gap: .35rem; }
-  .radius-opt span { padding: .35rem .6rem; font-size: .82rem; }
+  .radius-opt span { padding: .35rem .4rem; font-size: .78rem; }
 
-  /* Davet kutusu */
-  .invite-box { flex-wrap: wrap; gap: .4rem; }
-  .invite-box input { min-width: 0; flex: 1; font-size: .8rem; }
+  /* Davet kutusu — URL'nin taşmaması için */
+  .invite-box { flex-wrap: nowrap; gap: .4rem; }
+  .invite-box input {
+    min-width: 0; flex: 1; font-size: .75rem;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .invite-box .btn { flex-shrink: 0; }
+
+  /* Kategori seçici */
+  .category-picker { gap: .5rem; }
+  .category-card   { padding: .75rem .5rem; font-size: .85rem; }
+  .category-icon   { font-size: 1.6rem; }
 }
 
 /* Çok küçük ekranlar (≤380px) */
 @media (max-width: 380px) {
-  .card { padding: .7rem; }
-  .winner-name { font-size: 1.25rem; }
-  .btn--vote { font-size: 1.1rem; }
+  .card          { padding: .7rem; }
+  .winner-name   { font-size: 1.25rem; }
+  .btn--vote     { font-size: 1.1rem; }
   .card--hero h1 { font-size: 1.2rem; }
+  .step          { padding: .85rem .6rem; }
+  .radius-opt span { font-size: .72rem; padding: .3rem .25rem; }
+  .places-header-top { gap: .3rem; }
+  .votes-remaining   { font-size: .72rem; }
 }

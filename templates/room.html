@@ -212,6 +212,7 @@
 
 {% block scripts %}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script>
   const ROOM_CODE      = "{{ room.code }}";
   const ROOM_STATUS    = "{{ room.status }}";
@@ -224,4 +225,5 @@
   const ROOM_CATEGORY  = "{{ room.category }}";
   const IS_OWNER       = {{ participant.is_owner | tojson }};
 </script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
 {% endblock %}
