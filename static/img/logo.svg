@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+  </defs>
+  <!-- Back bubble (top-right, lighter) -->
+  <rect x="13" y="3" width="25" height="17" rx="5" fill="url(#g)" opacity="0.5"/>
+  <polygon points="35,20 38,27 27,20" fill="url(#g)" opacity="0.5"/>
+  <!-- Front bubble (bottom-left) -->
+  <rect x="2" y="20" width="25" height="17" rx="5" fill="url(#g)"/>
+  <polygon points="5,37 2,40 13,37" fill="url(#g)"/>
+</svg>
