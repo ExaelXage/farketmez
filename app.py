@@ -10,7 +10,15 @@ app = Flask(__name__)
 app.config.from_object(Config)
 
 # CORS: JSON API endpoint'leri için tüm origin'lere izin ver
-CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=False)
+# X-Participant-Token custom header'ı da dahil edilmeli (Flutter web preflight için)
+CORS(app, resources={r"/api/*": {
+    "origins": "*",
+    "allow_headers": [
+        "Content-Type", "X-Participant-Token",
+        "Accept", "Authorization", "X-Requested-With",
+    ],
+    "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+}}, supports_credentials=False)
 
 _async_mode = os.getenv("SOCKETIO_ASYNC_MODE", "threading")
 socketio.init_app(app, cors_allowed_origins="*", async_mode=_async_mode)
