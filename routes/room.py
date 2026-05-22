@@ -1,6 +1,9 @@
+import os
 from flask import Blueprint, render_template, redirect, url_for, request, session, abort
 import models
 from config import Config
+
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "farketmez2024")
 
 bp = Blueprint("room", __name__)
 
@@ -52,6 +55,26 @@ def room_view(code):
         vote_summary=vote_summary,
         max_votes=Config.MAX_VOTES_PER_USER,
     )
+
+
+@bp.route("/admin", methods=["GET", "POST"])
+def admin():
+    if request.method == "POST":
+        if request.form.get("password") == ADMIN_PASSWORD:
+            session["admin"] = True
+            return redirect(url_for("room.admin"))
+        return render_template("admin.html", authenticated=False, error="Yanlış şifre.")
+
+    if not session.get("admin"):
+        return render_template("admin.html", authenticated=False, error=None)
+
+    return render_template("admin.html", authenticated=True, stats=models.get_stats())
+
+
+@bp.route("/admin/logout")
+def admin_logout():
+    session.pop("admin", None)
+    return redirect(url_for("room.admin"))
 
 
 @bp.route("/room/<code>/join", methods=["POST"])

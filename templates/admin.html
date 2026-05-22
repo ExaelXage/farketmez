@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Admin — Farketmez{% endblock %}
+
+{% block content %}
+{% if not authenticated %}
+<div class="card card--join">
+  <h2>Admin Girişi</h2>
+  <p class="subtitle">İstatistikleri görmek için şifreyi gir.</p>
+  {% if error %}<p class="error-msg">{{ error }}</p>{% endif %}
+  <form method="POST" class="create-form">
+    <div class="form-group">
+      <label for="password">Şifre</label>
+      <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password" />
+    </div>
+    <button type="submit" class="btn btn--primary btn--full">Giriş Yap</button>
+  </form>
+</div>
+
+{% else %}
+<div class="card admin-card">
+  <div class="admin-header">
+    <h2>İstatistikler</h2>
+    <a href="/admin/logout" class="btn btn--secondary btn--sm">Çıkış</a>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <span class="stat-value">{{ stats.total_rooms }}</span>
+      <span class="stat-label">Toplam Oda</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value">{{ stats.active_rooms }}</span>
+      <span class="stat-label">Aktif Oda</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value">{{ stats.total_users }}</span>
+      <span class="stat-label">Toplam Kullanıcı</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value">{{ stats.total_votes }}</span>
+      <span class="stat-label">Toplam Oy</span>
+    </div>
+  </div>
+
+  <p class="hint" style="margin-top:1.25rem;text-align:center">
+    Canlı veri — <a href="/api/stats">/api/stats</a>
+  </p>
+</div>
+{% endif %}
+{% endblock %}

@@ -388,6 +388,11 @@ def finish(code):
     })
 
 
+@bp.route("/stats")
+def stats():
+    return jsonify(models.get_stats())
+
+
 @bp.route("/room/<code>/results")
 def room_results(code):
     room = models.get_room(code)

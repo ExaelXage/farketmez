@@ -222,7 +222,8 @@ hr { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
 .form-group  { display: flex; flex-direction: column; gap: .4rem; }
 .form-group label { font-size: .85rem; color: var(--text-muted); font-weight: 600; }
 
-input[type="text"] {
+input[type="text"],
+input[type="password"] {
   background: var(--surface2);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -232,7 +233,8 @@ input[type="text"] {
   width: 100%;
   transition: border-color .2s;
 }
-input[type="text"]:focus { outline: none; border-color: var(--accent); }
+input[type="text"]:focus,
+input[type="password"]:focus { outline: none; border-color: var(--accent); }
 
 /* ===== Category Picker ===== */
 .category-picker { display: flex; gap: .75rem; }
@@ -653,6 +655,49 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
 .rank-num   { font-size: .9rem; font-weight: 800; color: var(--text-muted); min-width: 1.6rem; text-align: center; }
 .rank-name  { flex: 1; font-size: .9rem; font-weight: 600; }
 .rank-score { font-size: .85rem; font-weight: 700; color: var(--accent); white-space: nowrap; }
+
+/* ===== Admin ===== */
+.admin-card {
+  max-width: 520px;
+  margin: 0 auto;
+}
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: .85rem;
+}
+.stat-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.4rem 1rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+}
+.stat-value {
+  font-size: 2.8rem;
+  font-weight: 800;
+  line-height: 1;
+  background: var(--gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.stat-label {
+  font-size: .75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .07em;
+}
 
 /* ===== Nasıl çalışır? ===== */
 .how-it-works {

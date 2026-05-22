@@ -201,6 +201,16 @@ def get_participant_votes(participant_id):
         ).fetchall()
 
 
+def get_stats():
+    with get_db() as conn:
+        return {
+            "total_rooms":  conn.execute("SELECT COUNT(*) FROM rooms").fetchone()[0],
+            "active_rooms": conn.execute("SELECT COUNT(*) FROM rooms WHERE status != 'completed'").fetchone()[0],
+            "total_users":  conn.execute("SELECT COUNT(*) FROM participants").fetchone()[0],
+            "total_votes":  conn.execute("SELECT COUNT(*) FROM votes").fetchone()[0],
+        }
+
+
 def award_result_scores(room_id):
     """
     Oylama bitince çağrılır. Kazanan/kaybeden bazlı puanları hesaplar,
