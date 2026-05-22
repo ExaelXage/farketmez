@@ -9,13 +9,86 @@ bp = Blueprint("api", __name__, url_prefix="/api")
 
 
 def _current_participant(room_id=None):
-    token = session.get("token")
+    # Header-based token (Flutter / mobile) önce dene, sonra session (web)
+    token = request.headers.get("X-Participant-Token") or session.get("token")
     if not token:
         return None
     p = models.get_participant_by_token(token)
     if p and room_id and p["room_id"] != room_id:
         return None
     return p
+
+
+# ── Mobil / Flutter JSON endpoint'leri ─────────────────────────────────────
+
+@bp.route("/rooms", methods=["POST"])
+def create_room_json():
+    data     = request.get_json(force=True) or {}
+    nickname = data.get("nickname", "").strip()
+    category = data.get("category", "food")
+    lat      = data.get("lat")
+    lng      = data.get("lng")
+
+    if not nickname:
+        return jsonify({"error": "Takma ad gerekli"}), 400
+
+    code = models.create_room(nickname, category)
+    room = models.get_room(code)
+
+    if lat is not None and lng is not None:
+        models.update_room_location(code, lat, lng)
+
+    token = models.join_room(room["id"], nickname, is_owner=True)
+    participants = [dict(p) for p in models.get_room_participants(room["id"])]
+
+    return jsonify({
+        "code":        code,
+        "token":       token,
+        "category":    category,
+        "status":      "waiting",
+        "participants": participants,
+    }), 201
+
+
+@bp.route("/rooms/<code>/join", methods=["POST"])
+def join_room_json(code):
+    room = models.get_room(code)
+    if not room:
+        return jsonify({"error": "Oda bulunamadı"}), 404
+    if room["status"] == "completed":
+        return jsonify({"error": "Oylama tamamlandı"}), 400
+
+    data     = request.get_json(force=True) or {}
+    nickname = data.get("nickname", "").strip()
+    if not nickname:
+        return jsonify({"error": "Takma ad gerekli"}), 400
+
+    token        = models.join_room(room["id"], nickname, is_owner=False)
+    participants = [dict(p) for p in models.get_room_participants(room["id"])]
+
+    socketio.emit("participants_update", {"participants": participants}, to=code)
+
+    return jsonify({
+        "code":         code,
+        "token":        token,
+        "category":     room["category"],
+        "status":       room["status"],
+        "participants": participants,
+    }), 200
+
+
+@bp.route("/rooms/<code>", methods=["GET"])
+def get_room_json(code):
+    room = models.get_room(code)
+    if not room:
+        return jsonify({"error": "Oda bulunamadı"}), 404
+    participants = [dict(p) for p in models.get_room_participants(room["id"])]
+    return jsonify({
+        "code":         code,
+        "category":     room["category"],
+        "status":       room["status"],
+        "participants": participants,
+    })
 
 
 # ── Overpass sorguları ───────────────────────────────────────────────────────

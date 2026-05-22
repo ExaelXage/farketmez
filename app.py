@@ -1,12 +1,16 @@
 import os
 from flask import Flask
 from flask_socketio import join_room, emit
+from flask_cors import CORS
 from extensions import socketio
 from config import Config
 import models
 
 app = Flask(__name__)
 app.config.from_object(Config)
+
+# CORS: JSON API endpoint'leri için tüm origin'lere izin ver
+CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=False)
 
 _async_mode = os.getenv("SOCKETIO_ASYNC_MODE", "threading")
 socketio.init_app(app, cors_allowed_origins="*", async_mode=_async_mode)
