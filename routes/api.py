@@ -9,22 +9,26 @@ bp = Blueprint("api", __name__, url_prefix="/api")
 
 
 def _current_participant(room_id=None):
-    # 1) Custom header (Flutter eski versiyon)
-    # 2) JSON body'deki token (CORS preflight sorununu aşmak için)
+    # 1) Custom header
+    # 2) JSON body'deki token — force=True: text/plain dahil her content-type'ı parse eder
     # 3) Session cookie (web)
     token = request.headers.get("X-Participant-Token")
     if not token:
         try:
-            body = request.get_json(silent=True) or {}
+            body = request.get_json(force=True, silent=True) or {}
             token = body.get("token")
         except Exception:
             pass
     if not token:
         token = session.get("token")
     if not token:
+        print("[AUTH] token bulunamadı — header yok, body parse edilemedi, session yok")
         return None
     p = models.get_participant_by_token(token)
-    if p and room_id and p["room_id"] != room_id:
+    if p is None:
+        print(f"[AUTH] token DB'de bulunamadı: {token[:8]}...")
+    elif room_id and p["room_id"] != room_id:
+        print(f"[AUTH] token oda uyuşmuyor: p.room_id={p['room_id']} beklenen={room_id}")
         return None
     return p
 
