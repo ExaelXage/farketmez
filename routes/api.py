@@ -493,6 +493,141 @@ def stats():
     return jsonify(models.get_stats())
 
 
+# ── Flutter endpoint'leri (auth gerektirmez, oda kodu yeterli) ───────────────
+
+def _flutter_body():
+    """text/plain body'yi güvenilir şekilde parse et."""
+    import json as _json
+    return _json.loads(request.get_data(as_text=True) or "{}")
+
+
+def _flutter_participant(data, room_id):
+    """Body'deki token ile katılımcıyı bul; token yoksa None döner."""
+    token = data.get("token")
+    if not token:
+        return None
+    p = models.get_participant_by_token(token)
+    if p and p["room_id"] == room_id:
+        return p
+    return None
+
+
+@bp.route("/flutter/room/<code>/search", methods=["POST"])
+def flutter_search(code):
+    room = models.get_room(code)
+    if not room:
+        return jsonify({"error": "Oda bulunamadı"}), 404
+
+    data   = _flutter_body()
+    lat    = data.get("lat")
+    lng    = data.get("lng")
+    if lat is None or lng is None:
+        return jsonify({"error": "Konum gerekli"}), 400
+
+    radius = int(data.get("radius", Config.SEARCH_RADIUS_METERS))
+    if radius not in Config.ALLOWED_RADII:
+        radius = Config.SEARCH_RADIUS_METERS
+
+    models.update_room_location(code, lat, lng)
+
+    places, overpass_error = _combined_search(lat, lng, radius, room["category"])
+    actual_radius = radius
+
+    existing_ids = {p["osm_id"] for p in places}
+    for next_r in _EXPAND_RADII:
+        if len(places) >= _MIN_PLACES or next_r <= radius:
+            continue
+        print(f"[Flutter/Search] {len(places)} < {_MIN_PLACES}, genisletiliyor -> {next_r}m")
+        expanded, err = _combined_search(lat, lng, next_r, room["category"])
+        actual_radius = next_r
+        for p in expanded:
+            if p["osm_id"] not in existing_ids:
+                places.append(p)
+                existing_ids.add(p["osm_id"])
+        if err and not overpass_error:
+            overpass_error = err
+        if len(places) >= _MIN_PLACES:
+            break
+
+    if overpass_error and not places:
+        return jsonify({"error": overpass_error}), 502
+
+    models.save_places(room["id"], places)
+    models.update_room_status(code, "voting")
+
+    saved = [dict(p) for p in models.get_room_places(room["id"])]
+    socketio.emit("places_loaded", {
+        "places": saved, "lat": lat, "lng": lng, "actual_radius": actual_radius,
+    }, to=code)
+
+    return jsonify({"places": saved, "actual_radius": actual_radius})
+
+
+@bp.route("/flutter/room/<code>/vote", methods=["POST"])
+def flutter_vote(code):
+    room = models.get_room(code)
+    if not room:
+        return jsonify({"error": "Oda bulunamadı"}), 404
+    if room["status"] not in ("voting", "waiting"):
+        return jsonify({"error": "Oylama kapalı"}), 400
+
+    data      = _flutter_body()
+    place_id  = data.get("place_id")
+    value     = data.get("value")
+
+    if value not in (1, -1):
+        return jsonify({"error": "Geçersiz oy değeri"}), 400
+
+    participant = _flutter_participant(data, room["id"])
+    if not participant:
+        return jsonify({"error": "Geçersiz token"}), 403
+
+    used = models.get_participant_vote_count(participant["id"], room["id"])
+    if used >= Config.MAX_VOTES_PER_USER:
+        return jsonify({"error": f"Maksimum {Config.MAX_VOTES_PER_USER} oy kullandınız"}), 400
+
+    if not models.cast_vote(room["id"], participant["id"], place_id, value):
+        return jsonify({"error": "Zaten oy kullandınız"}), 409
+
+    models.update_score(participant["id"], Config.VOTE_ENGAGEMENT_BONUS)
+
+    summary      = [dict(r) for r in models.get_vote_summary(room["id"])]
+    participants = [dict(p) for p in models.get_room_participants(room["id"])]
+    socketio.emit("vote_update", {"summary": summary, "participants": participants}, to=code)
+
+    return jsonify({"ok": True, "summary": summary})
+
+
+@bp.route("/flutter/room/<code>/finish", methods=["POST"])
+def flutter_finish(code):
+    room = models.get_room(code)
+    if not room:
+        return jsonify({"error": "Oda bulunamadı"}), 404
+
+    data        = _flutter_body()
+    participant = _flutter_participant(data, room["id"])
+    if not participant:
+        return jsonify({"error": "Geçersiz token"}), 403
+    if not participant["is_owner"]:
+        return jsonify({"error": "Sadece oda sahibi oylamayı bitirebilir"}), 403
+
+    models.update_room_status(code, "completed")
+    score_log    = models.award_result_scores(room["id"])
+    summary      = [dict(r) for r in models.get_vote_summary(room["id"])]
+    participants = [dict(p) for p in models.get_room_participants(room["id"])]
+    winner       = summary[0] if summary else None
+
+    socketio.emit("show_results", {
+        "winner": winner, "summary": summary,
+        "participants": participants, "score_log": score_log,
+    }, to=code)
+
+    return jsonify({
+        "ok": True, "winner": winner, "summary": summary,
+        "participants": participants, "score_log": score_log,
+    })
+
+
 @bp.route("/room/<code>/results")
 def room_results(code):
     room = models.get_room(code)
