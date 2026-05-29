@@ -90,6 +90,9 @@ def join_room_json(code):
     if not nickname:
         return jsonify({"error": "Takma ad gerekli"}), 400
 
+    if models.nickname_exists_in_room(room["id"], nickname):
+        return jsonify({"error": "Bu isim zaten kullanılıyor"}), 409
+
     token        = models.join_room(room["id"], nickname, is_owner=False)
     participants = [dict(p) for p in models.get_room_participants(room["id"])]
 
@@ -104,18 +107,54 @@ def join_room_json(code):
     }), 200
 
 
+@bp.route("/rooms/<code>/rejoin", methods=["POST"])
+def rejoin_room(code):
+    room = models.get_room(code)
+    if not room:
+        return jsonify({"error": "Oda bulunamadı"}), 404
+
+    data  = request.get_json(force=True) or {}
+    token = data.get("token", "").strip()
+    if not token:
+        return jsonify({"error": "Token gerekli"}), 400
+
+    p = models.get_participant_by_token(token)
+    if not p or p["room_id"] != room["id"]:
+        return jsonify({"error": "Geçersiz token"}), 403
+
+    participants = [dict(x) for x in models.get_room_participants(room["id"])]
+    places       = [dict(x) for x in models.get_room_places(room["id"])] if room["status"] in ("voting", "completed") else []
+    summary      = [dict(x) for x in models.get_vote_summary(room["id"])] if room["status"] == "completed" else []
+
+    return jsonify({
+        "code":         code,
+        "token":        token,
+        "category":     room["category"],
+        "status":       room["status"],
+        "is_owner":     bool(p["is_owner"]),
+        "participants": participants,
+        "places":       places,
+        "summary":      summary,
+    }), 200
+
+
 @bp.route("/rooms/<code>", methods=["GET"])
 def get_room_json(code):
     room = models.get_room(code)
     if not room:
         return jsonify({"error": "Oda bulunamadı"}), 404
     participants = [dict(p) for p in models.get_room_participants(room["id"])]
-    return jsonify({
+    result = {
         "code":         code,
         "category":     room["category"],
         "status":       room["status"],
         "participants": participants,
-    })
+    }
+    if room["status"] in ("voting", "completed"):
+        result["places"] = [dict(p) for p in models.get_room_places(room["id"])]
+    if room["status"] == "completed":
+        result["summary"] = [dict(r) for r in models.get_vote_summary(room["id"])]
+    return jsonify(result)
 
 
 # ── Google Places (New API) ──────────────────────────────────────────────────

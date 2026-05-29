@@ -104,6 +104,15 @@ def update_room_location(code, lat, lng):
 
 # --- Participants ---
 
+def nickname_exists_in_room(room_id, nickname):
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT id FROM participants WHERE room_id = ? AND nickname = ?",
+            (room_id, nickname),
+        ).fetchone()
+    return row is not None
+
+
 def join_room(room_id, nickname, is_owner=False):
     token = uuid.uuid4().hex
     now   = datetime.utcnow().isoformat()
