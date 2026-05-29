@@ -267,55 +267,42 @@ def _fetch_google_places(lat, lng, radius, category):
     if not api_key:
         return [], "Google Places API key eksik"
 
-    types   = _GOOGLE_TYPES.get(category, _GOOGLE_TYPES["food"])
-    headers = {
-        "X-Goog-Api-Key":   api_key,
-        "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.location,places.types,nextPageToken",
-        "Content-Type":     "application/json",
-    }
-    base_body = {
-        "includedTypes": types,
-        "maxResultCount": 20,
-        "locationRestriction": {
-            "circle": {
-                "center": {"latitude": lat, "longitude": lng},
-                "radius": float(min(radius, 50000)),
-            }
-        },
-        "languageCode": "tr",
-    }
+    try:
+        resp = requests.post(
+            _GOOGLE_PLACES_URL,
+            json={
+                "includedTypes": _GOOGLE_TYPES.get(category, _GOOGLE_TYPES["food"]),
+                "maxResultCount": 20,
+                "locationRestriction": {
+                    "circle": {
+                        "center": {"latitude": lat, "longitude": lng},
+                        "radius": float(min(radius, 50000)),
+                    }
+                },
+                "languageCode": "tr",
+            },
+            headers={
+                "X-Goog-Api-Key":   api_key,
+                "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.location,places.types",
+                "Content-Type":     "application/json",
+            },
+            timeout=10,
+        )
+    except requests.exceptions.Timeout:
+        print("[Google Places] timeout (10s)")
+        return [], "Google Places zaman aşımı"
+    except Exception as e:
+        print(f"[Google Places] istek hatası: {e}")
+        return [], f"Google Places bağlantı hatası: {e}"
 
-    raw_all   = []
-    seen_ids  = set()
-    page_token = None
+    if resp.status_code != 200:
+        msg = resp.json().get("error", {}).get("message", resp.text[:120])
+        print(f"[Google Places] HTTP {resp.status_code}: {msg}")
+        return [], f"Google Places HTTP {resp.status_code}"
 
-    for page in range(3):  # max 3 sayfa = 60 mekan
-        body = {"pageToken": page_token} if page_token else base_body
-        try:
-            resp = requests.post(_GOOGLE_PLACES_URL, json=body, headers=headers, timeout=10)
-        except Exception as e:
-            print(f"[Google Places] sayfa {page+1} istek hatası: {e}")
-            break
-
-        if resp.status_code != 200:
-            msg = resp.json().get("error", {}).get("message", resp.text[:120])
-            print(f"[Google Places] HTTP {resp.status_code}: {msg}")
-            if page == 0:
-                return [], f"Google Places HTTP {resp.status_code}"
-            break
-
-        data = resp.json()
-        new_results = [r for r in data.get("places", []) if r.get("id") not in seen_ids]
-        seen_ids.update(r["id"] for r in new_results)
-        raw_all.extend(new_results)
-
-        page_token = data.get("nextPageToken")
-        print(f"[Google Places] sayfa {page+1}: {len(new_results)} sonuç, token={'var' if page_token else 'yok'}")
-        if not page_token:
-            break
-
-    places = _parse_google_results(raw_all, category)
-    print(f"[Google Places] radius={radius}m cat={category} -> toplam {len(places)} mekan ({len(raw_all)} ham)")
+    raw    = resp.json().get("places", [])
+    places = _parse_google_results(raw, category)
+    print(f"[Google Places] radius={radius}m cat={category} -> {len(places)} mekan")
     return places, None
 
 
