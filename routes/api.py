@@ -118,38 +118,13 @@ def get_room_json(code):
     })
 
 
-# ── Overpass sorguları ───────────────────────────────────────────────────────
+# ── Google Places (New API) ──────────────────────────────────────────────────
 
-_OVERPASS_HEADERS = {
-    "User-Agent": "Farketmez/1.0 (group decision app)",
-    "Accept":     "application/json",
-}
+_GOOGLE_PLACES_URL = "https://places.googleapis.com/v1/places:searchNearby"
 
-OVERPASS_QUERIES = {
-    "food": """
-[out:json][timeout:25];
-(
-  node["name"]["amenity"~"^(restaurant|cafe|fast_food|bar|pub|food_court|ice_cream|bakery|biergarten|juice_bar|canteen|diner|bbq|coffee_shop|lokanta|kebab_shop|nargile_cafe|hookah_lounge|patisserie|confectionery)$"](around:{radius},{lat},{lng});
-  node["name"]["cuisine"](around:{radius},{lat},{lng});
-  node["name"]["shop"~"^(bakery|pastry|deli|beverages|confectionery|food|butcher|cheese|chocolate|coffee|tea|wine|spices)$"](around:{radius},{lat},{lng});
-  way["name"]["amenity"~"^(restaurant|cafe|fast_food|bar|pub|food_court|ice_cream|bakery|biergarten|canteen|lokanta|kebab_shop|nargile_cafe)$"](around:{radius},{lat},{lng});
-  way["name"]["cuisine"](around:{radius},{lat},{lng});
-  way["name"]["shop"~"^(bakery|pastry|food|confectionery)$"](around:{radius},{lat},{lng});
-);
-out body center {limit};
-""",
-    "activity": """
-[out:json][timeout:25];
-(
-  node["name"]["leisure"~"^(bowling_alley|escape_game|park|fitness_centre|sports_centre|golf_course|miniature_golf|amusement_arcade|swimming_pool|water_park|ice_rink|playground|garden|beach_resort|sports_hall|dance)$"](around:{radius},{lat},{lng});
-  node["name"]["amenity"~"^(cinema|theatre|nightclub|casino|arts_centre|community_centre|events_venue|conference_centre|planetarium)$"](around:{radius},{lat},{lng});
-  node["name"]["tourism"~"^(attraction|theme_park|zoo|museum|gallery|aquarium)$"](around:{radius},{lat},{lng});
-  way["name"]["leisure"~"^(park|fitness_centre|sports_centre|swimming_pool|stadium|water_park|garden|sports_hall|pitch|beach_resort)$"](around:{radius},{lat},{lng});
-  way["name"]["amenity"~"^(cinema|theatre|nightclub|events_venue|arts_centre)$"](around:{radius},{lat},{lng});
-  way["name"]["tourism"~"^(attraction|theme_park|zoo|museum|gallery|aquarium)$"](around:{radius},{lat},{lng});
-);
-out body center {limit};
-""",
+_GOOGLE_TYPES = {
+    "food":     ["restaurant", "cafe", "bakery", "bar"],
+    "activity": ["park", "museum", "movie_theater"],
 }
 
 
@@ -160,13 +135,8 @@ _BLOCKED_CHAIN_NAMES = (
     "bim", "a101", "şok", "sok", "migros", "carrefoursa", "carrefour sa",
 )
 
-# Overpass shop/amenity tag değerleri
-_BLOCKED_OSM_TAGS = frozenset({
-    "supermarket", "convenience", "market",
-})
-
-# Foursquare category adında geçmesi yeterli anahtar kelimeler
-_BLOCKED_FSQ_KEYWORDS = (
+# Foursquare / Google category adında geçmesi yeterli anahtar kelimeler
+_BLOCKED_KEYWORDS = (
     "supermarket", "convenience store", "grocery store", "market",
 )
 
@@ -179,16 +149,10 @@ def _is_blocked_name(name: str) -> bool:
     return False
 
 
-def _is_blocked_osm(tags: dict) -> bool:
-    shop    = (tags.get("shop") or "").lower()
-    amenity = (tags.get("amenity") or "").lower()
-    return shop in _BLOCKED_OSM_TAGS or amenity in _BLOCKED_OSM_TAGS
-
-
 def _is_blocked_fsq(cat_names: list) -> bool:
     for cat in cat_names:
         cat_lower = cat.lower()
-        if any(kw in cat_lower for kw in _BLOCKED_FSQ_KEYWORDS):
+        if any(kw in cat_lower for kw in _BLOCKED_KEYWORDS):
             return True
     return False
 
@@ -269,6 +233,71 @@ def _fetch_foursquare(lat, lng, radius, category):
     return places
 
 
+# ── Google Places ────────────────────────────────────────────────────────────
+
+def _fetch_google_places(lat, lng, radius, category):
+    api_key = Config.GOOGLE_PLACES_API_KEY
+    if not api_key:
+        return [], "Google Places API key eksik"
+
+    types = _GOOGLE_TYPES.get(category, _GOOGLE_TYPES["food"])
+
+    try:
+        resp = requests.post(
+            _GOOGLE_PLACES_URL,
+            json={
+                "includedTypes": types,
+                "maxResultCount": 20,
+                "locationRestriction": {
+                    "circle": {
+                        "center": {"latitude": lat, "longitude": lng},
+                        "radius": float(min(radius, 50000)),
+                    }
+                },
+                "languageCode": "tr",
+            },
+            headers={
+                "X-Goog-Api-Key":    api_key,
+                "X-Goog-FieldMask":  "places.id,places.displayName,places.formattedAddress,places.location,places.types",
+                "Content-Type":      "application/json",
+            },
+            timeout=10,
+        )
+    except Exception as e:
+        print(f"[Google Places] istek hatası: {e}")
+        return [], f"Google Places bağlantı hatası: {e}"
+
+    if resp.status_code != 200:
+        msg = resp.json().get("error", {}).get("message", resp.text[:120])
+        print(f"[Google Places] HTTP {resp.status_code}: {msg}")
+        return [], f"Google Places HTTP {resp.status_code}"
+
+    _SKIP_TYPES = frozenset({"point_of_interest", "establishment", "food", "lodging"})
+    places = []
+    for r in resp.json().get("places", []):
+        name = (r.get("displayName", {}).get("text") or "").strip()
+        if not name or _is_blocked_name(name):
+            continue
+        loc  = r.get("location", {})
+        rlat = loc.get("latitude")
+        rlng = loc.get("longitude")
+        if rlat is None or rlng is None:
+            continue
+        rtypes   = r.get("types", [])
+        cat_name = next((t for t in rtypes if t not in _SKIP_TYPES), category)
+        places.append({
+            "osm_id":   f"gp_{r['id']}",
+            "name":     name,
+            "category": cat_name,
+            "lat":      rlat,
+            "lng":      rlng,
+            "address":  r.get("formattedAddress") or "—",
+        })
+
+    print(f"[Google Places] radius={radius}m cat={category} -> {len(places)} mekan")
+    return places, None
+
+
 # ── Konum & Mekan arama ─────────────────────────────────────────────────────
 
 _MIN_PLACES    = 15
@@ -276,80 +305,23 @@ _EXPAND_RADII  = [5_000, 10_000, 20_000]  # otomatik genişleme adımları
 
 
 def _combined_search(lat, lng, radius, category):
-    """Overpass + Foursquare paralel çalıştır, sonuçları birleştir."""
-    query = OVERPASS_QUERIES.get(category, OVERPASS_QUERIES["food"]).format(
-        radius=radius, lat=lat, lng=lng,
-        limit=Config.MAX_PLACES_PER_QUERY,
-    )
-
-    def _run_overpass():
-        resp = requests.post(
-            Config.OVERPASS_API_URL,
-            data={"data": query},
-            headers=_OVERPASS_HEADERS,
-            timeout=28,
-        )
-        resp.raise_for_status()
-        return resp.json().get("elements", [])
-
-    overpass_elements, fsq_places = [], []
-    overpass_error = None
-
+    """Google Places + Foursquare paralel çalıştır, sonuçları birleştir."""
     with ThreadPoolExecutor(max_workers=2) as pool:
-        fut_overpass = pool.submit(_run_overpass)
-        fut_fsq      = pool.submit(_fetch_foursquare, lat, lng, radius, category)
+        fut_google = pool.submit(_fetch_google_places, lat, lng, radius, category)
+        fut_fsq    = pool.submit(_fetch_foursquare,    lat, lng, radius, category)
+        google_places, google_error = fut_google.result()
+        fsq_places                  = fut_fsq.result()
 
-        try:
-            overpass_elements = fut_overpass.result()
-        except requests.exceptions.HTTPError as e:
-            overpass_error = f"Overpass HTTP {e.response.status_code}"
-        except Exception as e:
-            overpass_error = f"Overpass API hatası: {e}"
-
-        fsq_places = fut_fsq.result()
-
-    print(f"[Foursquare] radius={radius}m -> {len(fsq_places)} mekan")
-
-    seen, places = set(), []
-    for el in overpass_elements:
-        key = f"{el.get('type')}/{el.get('id')}"
-        if key in seen:
-            continue
-        seen.add(key)
-
-        tags = el.get("tags", {})
-        name = tags.get("name", "").strip()
-        if not name:
-            continue
-
-        if _is_blocked_name(name) or _is_blocked_osm(tags):
-            continue
-
-        if el["type"] == "way":
-            c = el.get("center", {})
-            elat, elng = c.get("lat"), c.get("lon")
-        else:
-            elat, elng = el.get("lat"), el.get("lon")
-
-        addr_parts = [tags.get("addr:street",""), tags.get("addr:housenumber",""), tags.get("addr:city","")]
-        address    = " ".join(p for p in addr_parts if p) or "—"
-
-        places.append({
-            "osm_id":   str(el.get("id", "")),
-            "name":     name,
-            "category": tags.get("amenity") or tags.get("leisure") or tags.get("tourism") or tags.get("shop") or category,
-            "lat": elat, "lng": elng,
-            "address": address,
-        })
-
-    existing_names = {p["name"].lower() for p in places}
+    seen_names = {p["name"].lower() for p in google_places}
+    added_fsq  = 0
     for fp in fsq_places:
-        if fp["name"].lower() not in existing_names:
-            places.append(fp)
-            existing_names.add(fp["name"].lower())
+        if fp["name"].lower() not in seen_names:
+            google_places.append(fp)
+            seen_names.add(fp["name"].lower())
+            added_fsq += 1
 
-    print(f"[Search] radius={radius}m -> Overpass:{len(overpass_elements)} FSQ:{len(fsq_places)} toplam:{len(places)}")
-    return places, overpass_error
+    print(f"[Search] radius={radius}m -> Google:{len(google_places)-added_fsq} +FSQ:{added_fsq} toplam:{len(google_places)}")
+    return google_places, google_error
 
 
 @bp.route("/room/<code>/search", methods=["POST"])
