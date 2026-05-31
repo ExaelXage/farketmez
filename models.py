@@ -23,19 +23,6 @@ def get_db():
 
 def init_db():
     with get_db() as conn:
-        # Mevcut DB için migration
-        for _sql in [
-            "ALTER TABLE participants ADD COLUMN is_owner INTEGER NOT NULL DEFAULT 0",
-            "ALTER TABLE places ADD COLUMN rating REAL",
-            "ALTER TABLE places ADD COLUMN user_rating_count INTEGER DEFAULT 0",
-            "ALTER TABLE places ADD COLUMN price_level INTEGER",
-            "ALTER TABLE places ADD COLUMN open_now INTEGER",
-        ]:
-            try:
-                conn.execute(_sql)
-            except Exception:
-                pass
-
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS rooms (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -79,6 +66,19 @@ def init_db():
                 UNIQUE(participant_id, place_id)
             );
         """)
+
+        # Column migrations — silently ignored if column already exists
+        for _sql in [
+            "ALTER TABLE participants ADD COLUMN is_owner INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE places ADD COLUMN rating REAL",
+            "ALTER TABLE places ADD COLUMN user_rating_count INTEGER DEFAULT 0",
+            "ALTER TABLE places ADD COLUMN price_level INTEGER",
+            "ALTER TABLE places ADD COLUMN open_now INTEGER",
+        ]:
+            try:
+                conn.execute(_sql)
+            except Exception:
+                pass
 
 
 # --- Room ---
