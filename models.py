@@ -23,11 +23,18 @@ def get_db():
 
 def init_db():
     with get_db() as conn:
-        # Mevcut DB için migration: is_owner kolonu yoksa ekle
-        try:
-            conn.execute("ALTER TABLE participants ADD COLUMN is_owner INTEGER NOT NULL DEFAULT 0")
-        except Exception:
-            pass
+        # Mevcut DB için migration
+        for _sql in [
+            "ALTER TABLE participants ADD COLUMN is_owner INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE places ADD COLUMN rating REAL",
+            "ALTER TABLE places ADD COLUMN user_rating_count INTEGER DEFAULT 0",
+            "ALTER TABLE places ADD COLUMN price_level INTEGER",
+            "ALTER TABLE places ADD COLUMN open_now INTEGER",
+        ]:
+            try:
+                conn.execute(_sql)
+            except Exception:
+                pass
 
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS rooms (
@@ -151,8 +158,15 @@ def save_places(room_id, places):
     with get_db() as conn:
         conn.execute("DELETE FROM places WHERE room_id = ?", (room_id,))
         conn.executemany(
-            "INSERT INTO places (room_id, osm_id, name, category, lat, lng, address) VALUES (?,?,?,?,?,?,?)",
-            [(room_id, p["osm_id"], p["name"], p["category"], p["lat"], p["lng"], p["address"]) for p in places]
+            """INSERT INTO places
+               (room_id, osm_id, name, category, lat, lng, address,
+                rating, user_rating_count, price_level, open_now)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+            [(room_id, p["osm_id"], p["name"], p["category"], p["lat"], p["lng"], p["address"],
+              p.get("rating"), p.get("user_rating_count", 0), p.get("price_level"),
+              (1 if p["open_now"] is True else 0 if p["open_now"] is False else None)
+              if "open_now" in p else None)
+             for p in places]
         )
 
 

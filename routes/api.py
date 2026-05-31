@@ -276,6 +276,14 @@ def _fetch_foursquare(lat, lng, radius, category):
 
 _GOOGLE_SKIP_TYPES = frozenset({"point_of_interest", "establishment", "food", "lodging"})
 
+_PRICE_LEVEL_MAP = {
+    "PRICE_LEVEL_FREE":           0,
+    "PRICE_LEVEL_INEXPENSIVE":    1,
+    "PRICE_LEVEL_MODERATE":       2,
+    "PRICE_LEVEL_EXPENSIVE":      3,
+    "PRICE_LEVEL_VERY_EXPENSIVE": 4,
+}
+
 
 def _parse_google_results(raw_places, category):
     places = []
@@ -290,13 +298,22 @@ def _parse_google_results(raw_places, category):
             continue
         rtypes   = r.get("types", [])
         cat_name = next((t for t in rtypes if t not in _GOOGLE_SKIP_TYPES), category)
+
+        open_now = r.get("currentOpeningHours", {}).get("openNow")
+        if open_now is None:
+            open_now = r.get("regularOpeningHours", {}).get("openNow")
+
         places.append({
-            "osm_id":   f"gp_{r['id']}",
-            "name":     name,
-            "category": cat_name,
-            "lat":      rlat,
-            "lng":      rlng,
-            "address":  r.get("formattedAddress") or "—",
+            "osm_id":            f"gp_{r['id']}",
+            "name":              name,
+            "category":          cat_name,
+            "lat":               rlat,
+            "lng":               rlng,
+            "address":           r.get("formattedAddress") or "—",
+            "rating":            r.get("rating"),
+            "user_rating_count": r.get("userRatingCount", 0),
+            "price_level":       _PRICE_LEVEL_MAP.get(r.get("priceLevel", "")),
+            "open_now":          open_now,
         })
     return places
 
@@ -322,7 +339,7 @@ def _fetch_google_places(lat, lng, radius, category):
             },
             headers={
                 "X-Goog-Api-Key":   api_key,
-                "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.location,places.types",
+                "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.location,places.types,places.rating,places.userRatingCount,places.priceLevel,places.currentOpeningHours.openNow,places.regularOpeningHours.openNow",
                 "Content-Type":     "application/json",
             },
             timeout=10,
