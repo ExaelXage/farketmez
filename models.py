@@ -75,6 +75,7 @@ def init_db():
             "ALTER TABLE places ADD COLUMN price_level INTEGER",
             "ALTER TABLE places ADD COLUMN open_now INTEGER",
             "ALTER TABLE places ADD COLUMN photo_name TEXT",
+            "ALTER TABLE participants ADD COLUMN fcm_token TEXT",
         ]:
             try:
                 conn.execute(_sql)
@@ -143,6 +144,22 @@ def get_room_participants(room_id):
             "SELECT * FROM participants WHERE room_id = ? ORDER BY score DESC",
             (room_id,)
         ).fetchall()
+
+
+def update_fcm_token(participant_token, fcm_token):
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE participants SET fcm_token = ? WHERE token = ?",
+            (fcm_token, participant_token)
+        )
+
+
+def get_room_owner(room_id):
+    with get_db() as conn:
+        return conn.execute(
+            "SELECT * FROM participants WHERE room_id = ? AND is_owner = 1 LIMIT 1",
+            (room_id,)
+        ).fetchone()
 
 
 def update_score(participant_id, delta):

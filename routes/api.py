@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify, session
+import json as _json_mod
 import requests
 import models
 from config import Config
@@ -98,6 +99,15 @@ def join_room_json(code):
 
     socketio.emit("participants_update", {"participants": participants}, to=code)
 
+    # Oda sahibine bildirim gönder (arka planda, hata olursa devam et)
+    owner = models.get_room_owner(room["id"])
+    if owner and owner.get("fcm_token"):
+        _send_fcm_notification(
+            owner["fcm_token"],
+            title="Farketmez",
+            body=f"{nickname} odana katıldı! 🎉",
+        )
+
     return jsonify({
         "code":         code,
         "token":        token,
@@ -105,6 +115,28 @@ def join_room_json(code):
         "status":       room["status"],
         "participants": participants,
     }), 200
+
+
+@bp.route("/rooms/<code>/fcm-token", methods=["POST"])
+def update_fcm_token(code):
+    room = models.get_room(code)
+    if not room:
+        return jsonify({"error": "Oda bulunamadı"}), 404
+
+    try:
+        raw  = request.get_data(as_text=True)
+        data = _json_mod.loads(raw) if raw else {}
+    except Exception:
+        data = {}
+
+    fcm_token         = data.get("fcm_token", "").strip()
+    participant_token = data.get("token", "").strip()
+
+    if not fcm_token or not participant_token:
+        return jsonify({"error": "fcm_token ve token gerekli"}), 400
+
+    models.update_fcm_token(participant_token, fcm_token)
+    return jsonify({"ok": True}), 200
 
 
 @bp.route("/rooms/<code>/rejoin", methods=["POST"])
@@ -379,6 +411,46 @@ def _place_to_dict(row):
             f"/media?maxWidthPx=400&key={api_key}"
         )
     return d
+
+# ── Firebase Cloud Messaging ─────────────────────────────────────────────────
+
+_firebase_app = None
+
+def _get_firebase_app():
+    global _firebase_app
+    if _firebase_app is not None:
+        return _firebase_app
+    cred_json = Config.FIREBASE_CREDENTIALS_JSON
+    if not cred_json:
+        return None
+    try:
+        import firebase_admin
+        from firebase_admin import credentials
+        cred_dict = _json_mod.loads(cred_json)
+        cred = credentials.Certificate(cred_dict)
+        _firebase_app = firebase_admin.initialize_app(cred)
+        print("[FCM] Firebase Admin başlatıldı")
+    except Exception as e:
+        print(f"[FCM] Firebase Admin başlatılamadı: {e}")
+        _firebase_app = None
+    return _firebase_app
+
+
+def _send_fcm_notification(fcm_token, title, body):
+    try:
+        app = _get_firebase_app()
+        if app is None:
+            return
+        from firebase_admin import messaging
+        message = messaging.Message(
+            notification=messaging.Notification(title=title, body=body),
+            token=fcm_token,
+        )
+        messaging.send(message)
+        print(f"[FCM] Bildirim gönderildi: {title}")
+    except Exception as e:
+        print(f"[FCM] Bildirim gönderilemedi: {e}")
+
 
 _MIN_PLACES    = 15
 _EXPAND_RADII  = [5_000, 10_000, 20_000]  # otomatik genişleme adımları

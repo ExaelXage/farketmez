@@ -12,7 +12,8 @@ class Config:
     OVERPASS_API_URL      = "https://overpass-api.de/api/interpreter"
     FOURSQUARE_API_URL    = "https://places-api.foursquare.com/places/search"
     FOURSQUARE_API_KEY    = os.getenv("FOURSQUARE_API_KEY", "")
-    GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "")
+    GOOGLE_PLACES_API_KEY     = os.getenv("GOOGLE_PLACES_API_KEY", "")
+    FIREBASE_CREDENTIALS_JSON = os.getenv("FIREBASE_CREDENTIALS_JSON", "")
     SEARCH_RADIUS_METERS  = 2000
     MAX_PLACES_PER_QUERY  = 200
     ALLOWED_RADII         = {500, 1000, 2000, 5000}
