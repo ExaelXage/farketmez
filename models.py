@@ -74,6 +74,7 @@ def init_db():
             "ALTER TABLE places ADD COLUMN user_rating_count INTEGER DEFAULT 0",
             "ALTER TABLE places ADD COLUMN price_level INTEGER",
             "ALTER TABLE places ADD COLUMN open_now INTEGER",
+            "ALTER TABLE places ADD COLUMN photo_name TEXT",
         ]:
             try:
                 conn.execute(_sql)
@@ -160,12 +161,13 @@ def save_places(room_id, places):
         conn.executemany(
             """INSERT INTO places
                (room_id, osm_id, name, category, lat, lng, address,
-                rating, user_rating_count, price_level, open_now)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                rating, user_rating_count, price_level, open_now, photo_name)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
             [(room_id, p["osm_id"], p["name"], p["category"], p["lat"], p["lng"], p["address"],
               p.get("rating"), p.get("user_rating_count", 0), p.get("price_level"),
               (1 if p["open_now"] is True else 0 if p["open_now"] is False else None)
-              if "open_now" in p else None)
+              if "open_now" in p else None,
+              p.get("photo_name"))
              for p in places]
         )
 

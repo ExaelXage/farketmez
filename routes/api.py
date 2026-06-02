@@ -123,7 +123,7 @@ def rejoin_room(code):
         return jsonify({"error": "Geçersiz token"}), 403
 
     participants = [dict(x) for x in models.get_room_participants(room["id"])]
-    places       = [dict(x) for x in models.get_room_places(room["id"])] if room["status"] in ("voting", "completed") else []
+    places       = [_place_to_dict(x) for x in models.get_room_places(room["id"])] if room["status"] in ("voting", "completed") else []
     summary      = [dict(x) for x in models.get_vote_summary(room["id"])] if room["status"] == "completed" else []
 
     return jsonify({
@@ -151,7 +151,7 @@ def get_room_json(code):
         "participants": participants,
     }
     if room["status"] in ("voting", "completed"):
-        result["places"] = [dict(p) for p in models.get_room_places(room["id"])]
+        result["places"] = [_place_to_dict(p) for p in models.get_room_places(room["id"])]
     if room["status"] == "completed":
         result["summary"] = [dict(r) for r in models.get_vote_summary(room["id"])]
     return jsonify(result)
@@ -303,6 +303,9 @@ def _parse_google_results(raw_places, category):
         if open_now is None:
             open_now = r.get("regularOpeningHours", {}).get("openNow")
 
+        photos     = r.get("photos", [])
+        photo_name = photos[0]["name"] if photos else None
+
         places.append({
             "osm_id":            f"gp_{r['id']}",
             "name":              name,
@@ -314,6 +317,7 @@ def _parse_google_results(raw_places, category):
             "user_rating_count": r.get("userRatingCount", 0),
             "price_level":       _PRICE_LEVEL_MAP.get(r.get("priceLevel", "")),
             "open_now":          open_now,
+            "photo_name":        photo_name,
         })
     return places
 
@@ -339,7 +343,7 @@ def _fetch_google_places(lat, lng, radius, category):
             },
             headers={
                 "X-Goog-Api-Key":   api_key,
-                "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.location,places.types,places.rating,places.userRatingCount,places.priceLevel,places.currentOpeningHours.openNow,places.regularOpeningHours.openNow",
+                "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.location,places.types,places.rating,places.userRatingCount,places.priceLevel,places.currentOpeningHours.openNow,places.regularOpeningHours.openNow,places.photos",
                 "Content-Type":     "application/json",
             },
             timeout=10,
@@ -363,6 +367,18 @@ def _fetch_google_places(lat, lng, radius, category):
 
 
 # ── Konum & Mekan arama ─────────────────────────────────────────────────────
+
+def _place_to_dict(row):
+    """DB row → dict with photo_url constructed server-side (keeps API key out of DB)."""
+    d = dict(row)
+    photo_name = d.get("photo_name")
+    api_key    = Config.GOOGLE_PLACES_API_KEY
+    if photo_name and api_key:
+        d["photo_url"] = (
+            f"https://places.googleapis.com/v1/{photo_name}"
+            f"/media?maxWidthPx=400&key={api_key}"
+        )
+    return d
 
 _MIN_PLACES    = 15
 _EXPAND_RADII  = [5_000, 10_000, 20_000]  # otomatik genişleme adımları
@@ -436,7 +452,7 @@ def search_places(code):
     models.save_places(room["id"], places)
     models.update_room_status(code, "voting")
 
-    saved = [dict(p) for p in models.get_room_places(room["id"])]
+    saved = [_place_to_dict(p) for p in models.get_room_places(room["id"])]
     socketio.emit("places_loaded", {
         "places": saved, "lat": lat, "lng": lng, "actual_radius": actual_radius,
     }, to=code)
@@ -591,7 +607,7 @@ def flutter_search(code):
     models.save_places(room["id"], places)
     models.update_room_status(code, "voting")
 
-    saved = [dict(p) for p in models.get_room_places(room["id"])]
+    saved = [_place_to_dict(p) for p in models.get_room_places(room["id"])]
     socketio.emit("places_loaded", {
         "places": saved, "lat": lat, "lng": lng, "actual_radius": actual_radius,
     }, to=code)
