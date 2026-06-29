@@ -378,9 +378,9 @@ def _fetch_google_places(lat, lng, radius, category):
             if next_page_token:
                 body = {"pageToken": next_page_token}
             else:
+                excluded = _GOOGLE_EXCLUDED_TYPES.get(category, [])
                 body = {
                     "includedTypes":      _GOOGLE_TYPES.get(category, _GOOGLE_TYPES["food"]),
-                    "excludedTypes":      _GOOGLE_EXCLUDED_TYPES.get(category, []),
                     "maxResultCount":     20,
                     "locationRestriction": {
                         "circle": {
@@ -390,6 +390,8 @@ def _fetch_google_places(lat, lng, radius, category):
                     },
                     "languageCode": "tr",
                 }
+                if excluded:
+                    body["excludedTypes"] = excluded
             resp = requests.post(_GOOGLE_PLACES_URL, json=body, headers=headers, timeout=10)
         except requests.exceptions.Timeout:
             print(f"[Google Places] timeout (sayfa {page + 1})")
@@ -403,10 +405,15 @@ def _fetch_google_places(lat, lng, radius, category):
             break
 
         if resp.status_code != 200:
-            msg = resp.json().get("error", {}).get("message", resp.text[:120])
+            try:
+                err_body = resp.json()
+                msg = err_body.get("error", {}).get("message", str(err_body)[:300])
+            except Exception:
+                msg = resp.text[:300]
             print(f"[Google Places] HTTP {resp.status_code}: {msg}")
+            print(f"[Google Places] request body: {body}")
             if page == 0:
-                return [], f"Google Places HTTP {resp.status_code}"
+                return [], f"Google Places HTTP {resp.status_code}: {msg}"
             break
 
         result          = resp.json()
@@ -640,6 +647,11 @@ def finish(code):
 @bp.route("/stats")
 def stats():
     return jsonify(models.get_stats())
+
+
+@bp.route("/health")
+def health():
+    return jsonify({"ok": True}), 200
 
 
 # ── Flutter endpoint'leri (auth gerektirmez, oda kodu yeterli) ───────────────
