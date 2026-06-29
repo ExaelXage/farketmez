@@ -358,15 +358,20 @@ def _parse_google_results(raw_places, category):
     return places
 
 
-def _fetch_google_places(lat, lng, radius, category):
-    api_key = Config.GOOGLE_PLACES_API_KEY
-    if not api_key:
-        return [], "Google Places API key eksik"
+_GOOGLE_FIELD_MASK = (
+    "places.id,places.displayName,places.formattedAddress,"
+    "places.location,places.types,places.rating,"
+    "places.userRatingCount,places.priceLevel,"
+    "places.currentOpeningHours.openNow,"
+    "places.regularOpeningHours.openNow,places.photos"
+)
 
-    # Nearby Search (New) max 20 sonuç döner, pagination desteklemez.
-    excluded = _GOOGLE_EXCLUDED_TYPES.get(category, [])
+
+def _fetch_one_type(api_key, lat, lng, radius, ptype, excluded):
+    """Tek bir tip için Nearby Search isteği gönder (max 20 sonuç)."""
+    import json as _json
     body = {
-        "includedTypes":      _GOOGLE_TYPES.get(category, _GOOGLE_TYPES["food"]),
+        "includedTypes":      [ptype],
         "maxResultCount":     20,
         "locationRestriction": {
             "circle": {
@@ -379,47 +384,69 @@ def _fetch_google_places(lat, lng, radius, category):
     if excluded:
         body["excludedTypes"] = excluded
 
-    import json as _json
-    print(f"[Google Places] request body: {_json.dumps(body, ensure_ascii=False)}")
-
+    print(f"[Google Places/{ptype}] body: {_json.dumps(body, ensure_ascii=False)}")
     try:
         resp = requests.post(
             _GOOGLE_PLACES_URL,
             json=body,
             headers={
                 "X-Goog-Api-Key":   api_key,
-                "X-Goog-FieldMask": (
-                    "places.id,places.displayName,places.formattedAddress,"
-                    "places.location,places.types,places.rating,"
-                    "places.userRatingCount,places.priceLevel,"
-                    "places.currentOpeningHours.openNow,"
-                    "places.regularOpeningHours.openNow,places.photos"
-                ),
-                "Content-Type": "application/json",
+                "X-Goog-FieldMask": _GOOGLE_FIELD_MASK,
+                "Content-Type":     "application/json",
             },
-            timeout=10,
+            timeout=12,
         )
     except requests.exceptions.Timeout:
-        print("[Google Places] timeout (10s)")
-        return [], "Google Places zaman aşımı"
+        print(f"[Google Places/{ptype}] timeout")
+        return [], f"timeout ({ptype})"
     except Exception as e:
-        print(f"[Google Places] istek hatası: {e}")
-        return [], f"Google Places bağlantı hatası: {e}"
+        print(f"[Google Places/{ptype}] hata: {e}")
+        return [], str(e)
 
     if resp.status_code != 200:
         try:
             err_body = resp.json()
-            msg = err_body.get("error", {}).get("message", str(err_body)[:400])
+            msg = err_body.get("error", {}).get("message", str(err_body)[:300])
         except Exception:
-            msg = resp.text[:400]
-        print(f"[Google Places] HTTP {resp.status_code}: {msg}")
-        print(f"[Google Places] request body was: {_json.dumps(body, ensure_ascii=False)}")
-        return [], f"Google Places HTTP {resp.status_code}: {msg}"
+            msg = resp.text[:300]
+        print(f"[Google Places/{ptype}] HTTP {resp.status_code}: {msg}")
+        return [], f"HTTP {resp.status_code} ({ptype}): {msg}"
 
-    raw    = resp.json().get("places", [])
-    places = _parse_google_results(raw, category)
-    print(f"[Google Places] radius={radius}m cat={category} -> {len(places)} mekan (ham: {len(raw)})")
-    return places, None
+    raw = resp.json().get("places", [])
+    print(f"[Google Places/{ptype}] {len(raw)} sonuç")
+    return raw, None
+
+
+def _fetch_google_places(lat, lng, radius, category):
+    api_key = Config.GOOGLE_PLACES_API_KEY
+    if not api_key:
+        return [], "Google Places API key eksik"
+
+    types    = _GOOGLE_TYPES.get(category, _GOOGLE_TYPES["food"])
+    excluded = _GOOGLE_EXCLUDED_TYPES.get(category, [])
+
+    # Her tip için paralel istek — Nearby Search max 20/istek verir, sınır yok.
+    all_raw    = []
+    seen_ids   = set()
+    first_error = None
+
+    with ThreadPoolExecutor(max_workers=min(len(types), 8)) as pool:
+        futures = [pool.submit(_fetch_one_type, api_key, lat, lng, radius, t, excluded)
+                   for t in types]
+        for fut in as_completed(futures):
+            raw, err = fut.result()
+            if err and first_error is None:
+                first_error = err
+            for place in raw:
+                pid = place.get("id", "")
+                if pid and pid not in seen_ids:
+                    seen_ids.add(pid)
+                    all_raw.append(place)
+
+    places = _parse_google_results(all_raw, category)
+    print(f"[Google Places] radius={radius}m cat={category} "
+          f"-> {len(places)} benzersiz mekan ({len(types)} tip × max 20)")
+    return places, (first_error if not places else None)
 
 
 # ── Konum & Mekan arama ─────────────────────────────────────────────────────
