@@ -194,7 +194,7 @@ def get_room_json(code):
 _GOOGLE_PLACES_URL = "https://places.googleapis.com/v1/places:searchNearby"
 
 _GOOGLE_TYPES = {
-    "food":     ["restaurant", "cafe", "bakery", "bar", "meal_takeaway", "meal_delivery"],
+    "food":     ["restaurant", "cafe", "bakery", "bar"],
     "activity": ["park", "museum", "movie_theater", "bowling_alley", "amusement_park", "night_club"],
 }
 
@@ -392,6 +392,8 @@ def _fetch_google_places(lat, lng, radius, category):
                 }
                 if excluded:
                     body["excludedTypes"] = excluded
+            import json as _json
+            print(f"[Google Places] sayfa={page + 1} request body: {_json.dumps(body, ensure_ascii=False)}")
             resp = requests.post(_GOOGLE_PLACES_URL, json=body, headers=headers, timeout=10)
         except requests.exceptions.Timeout:
             print(f"[Google Places] timeout (sayfa {page + 1})")
