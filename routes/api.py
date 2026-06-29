@@ -194,8 +194,12 @@ def get_room_json(code):
 _GOOGLE_PLACES_URL = "https://places.googleapis.com/v1/places:searchNearby"
 
 _GOOGLE_TYPES = {
-    "food":     ["restaurant", "cafe", "bakery", "bar", "meal_takeaway", "meal_delivery"],
-    "activity": ["park", "museum", "movie_theater", "bowling_alley", "amusement_park", "night_club"],
+    "food": ["restaurant", "cafe", "bakery", "bar", "meal_takeaway", "meal_delivery"],
+    "activity": [
+        "park", "museum", "movie_theater", "bowling_alley", "amusement_park",
+        "night_club", "bar", "comedy_club", "karaoke", "video_arcade",
+        "amusement_center", "cafe",
+    ],
 }
 
 _GOOGLE_EXCLUDED_TYPES = {
