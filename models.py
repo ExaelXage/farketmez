@@ -76,6 +76,7 @@ def init_db():
             "ALTER TABLE places ADD COLUMN open_now INTEGER",
             "ALTER TABLE places ADD COLUMN photo_name TEXT",
             "ALTER TABLE participants ADD COLUMN fcm_token TEXT",
+            "ALTER TABLE participants ADD COLUMN device_id TEXT",
         ]:
             try:
                 conn.execute(_sql)
@@ -122,15 +123,42 @@ def nickname_exists_in_room(room_id, nickname):
     return row is not None
 
 
-def join_room(room_id, nickname, is_owner=False):
+def join_room(room_id, nickname, is_owner=False, device_id=None):
     token = uuid.uuid4().hex
     now   = datetime.utcnow().isoformat()
     with get_db() as conn:
         conn.execute(
-            "INSERT INTO participants (room_id, nickname, token, is_owner, joined_at) VALUES (?,?,?,?,?)",
-            (room_id, nickname, token, int(is_owner), now)
+            "INSERT INTO participants (room_id, nickname, token, is_owner, joined_at, device_id) VALUES (?,?,?,?,?,?)",
+            (room_id, nickname, token, int(is_owner), now, device_id)
         )
     return token
+
+
+def get_participant_by_device_id(room_id, device_id):
+    with get_db() as conn:
+        return conn.execute(
+            "SELECT * FROM participants WHERE room_id = ? AND device_id = ?",
+            (room_id, device_id)
+        ).fetchone()
+
+
+def refresh_participant_token(participant_id):
+    token = uuid.uuid4().hex
+    with get_db() as conn:
+        conn.execute("UPDATE participants SET token = ? WHERE id = ?", (token, participant_id))
+    return token
+
+
+def get_owner_room_by_device_id(device_id):
+    """En son oluşturulan, tamamlanmamış, bu device'a ait odayı döndür."""
+    with get_db() as conn:
+        return conn.execute(
+            """SELECT r.* FROM rooms r
+               JOIN participants p ON p.room_id = r.id
+               WHERE p.device_id = ? AND p.is_owner = 1 AND r.status != 'completed'
+               ORDER BY r.id DESC LIMIT 1""",
+            (device_id,)
+        ).fetchone()
 
 
 def get_participant_by_token(token):

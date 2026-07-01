@@ -51,70 +51,107 @@ def _current_participant(room_id=None):
 
 @bp.route("/rooms", methods=["POST"])
 def create_room_json():
-    data     = request.get_json(force=True) or {}
-    nickname = data.get("nickname", "").strip()
-    category = data.get("category", "food")
-    lat      = data.get("lat")
-    lng      = data.get("lng")
+    try:
+        data      = request.get_json(force=True) or {}
+        nickname  = data.get("nickname", "").strip()
+        category  = data.get("category", "food")
+        lat       = data.get("lat")
+        lng       = data.get("lng")
+        device_id = data.get("device_id", "").strip() or None
 
-    if not nickname:
-        return jsonify({"error": "Takma ad gerekli"}), 400
+        if not nickname:
+            return jsonify({"error": "Takma ad gerekli"}), 400
 
-    code = models.create_room(nickname, category)
-    room = models.get_room(code)
+        if device_id:
+            existing_room = models.get_owner_room_by_device_id(device_id)
+            if existing_room:
+                owner        = models.get_room_owner(existing_room["id"])
+                participants = [dict(p) for p in models.get_room_participants(existing_room["id"])]
+                return jsonify({
+                    "code":        existing_room["code"],
+                    "token":       owner["token"] if owner else "",
+                    "category":    existing_room["category"],
+                    "status":      existing_room["status"],
+                    "participants": participants,
+                }), 200
 
-    if lat is not None and lng is not None:
-        models.update_room_location(code, lat, lng)
+        code = models.create_room(nickname, category)
+        room = models.get_room(code)
 
-    token = models.join_room(room["id"], nickname, is_owner=True)
-    participants = [dict(p) for p in models.get_room_participants(room["id"])]
+        if lat is not None and lng is not None:
+            models.update_room_location(code, lat, lng)
 
-    return jsonify({
-        "code":        code,
-        "token":       token,
-        "category":    category,
-        "status":      "waiting",
-        "participants": participants,
-    }), 201
+        token        = models.join_room(room["id"], nickname, is_owner=True, device_id=device_id)
+        participants = [dict(p) for p in models.get_room_participants(room["id"])]
+
+        return jsonify({
+            "code":        code,
+            "token":       token,
+            "category":    category,
+            "status":      "waiting",
+            "participants": participants,
+        }), 201
+    except Exception as e:
+        print(f"[create_room] hata: {e}")
+        return jsonify({"error": "Oda oluşturulamadı"}), 400
 
 
 @bp.route("/rooms/<code>/join", methods=["POST"])
 def join_room_json(code):
-    room = models.get_room(code)
-    if not room:
-        return jsonify({"error": "Oda bulunamadı"}), 404
-    if room["status"] == "completed":
-        return jsonify({"error": "Oylama tamamlandı"}), 400
+    try:
+        room = models.get_room(code)
+        if not room:
+            return jsonify({"error": "Oda bulunamadı"}), 404
+        if room["status"] == "completed":
+            return jsonify({"error": "Oylama tamamlandı"}), 400
 
-    data     = request.get_json(force=True) or {}
-    nickname = data.get("nickname", "").strip()
-    if not nickname:
-        return jsonify({"error": "Takma ad gerekli"}), 400
+        data      = request.get_json(force=True) or {}
+        nickname  = data.get("nickname", "").strip()
+        device_id = data.get("device_id", "").strip() or None
 
-    if models.nickname_exists_in_room(room["id"], nickname):
-        return jsonify({"error": "Bu isim zaten kullanılıyor"}), 409
+        if not nickname:
+            return jsonify({"error": "Takma ad gerekli"}), 400
 
-    token        = models.join_room(room["id"], nickname, is_owner=False)
-    participants = [dict(p) for p in models.get_room_participants(room["id"])]
+        # Aynı device_id bu odada zaten varsa token'ı yenile ve döndür
+        if device_id:
+            existing = models.get_participant_by_device_id(room["id"], device_id)
+            if existing:
+                token        = models.refresh_participant_token(existing["id"])
+                participants = [dict(p) for p in models.get_room_participants(room["id"])]
+                return jsonify({
+                    "code":         code,
+                    "token":        token,
+                    "category":     room["category"],
+                    "status":       room["status"],
+                    "participants": participants,
+                }), 200
 
-    socketio.emit("participants_update", {"participants": participants}, to=code)
+        if models.nickname_exists_in_room(room["id"], nickname):
+            return jsonify({"error": "Bu isim zaten kullanılıyor"}), 409
 
-    # Oda sahibine bildirim gönder (arka planda, hata olursa devam et)
-    owner = models.get_room_owner(room["id"])
-    if owner and owner.get("fcm_token"):
-        _send_fcm_notification(
-            owner["fcm_token"],
-            title="Farketmez",
-            body=f"{nickname} odana katıldı! 🎉",
-        )
+        token        = models.join_room(room["id"], nickname, is_owner=False, device_id=device_id)
+        participants = [dict(p) for p in models.get_room_participants(room["id"])]
 
-    return jsonify({
-        "code":         code,
-        "token":        token,
-        "category":     room["category"],
-        "status":       room["status"],
-        "participants": participants,
-    }), 200
+        socketio.emit("participants_update", {"participants": participants}, to=code)
+
+        owner = models.get_room_owner(room["id"])
+        if owner and owner.get("fcm_token"):
+            _send_fcm_notification(
+                owner["fcm_token"],
+                title="Farketmez",
+                body=f"{nickname} odana katıldı! 🎉",
+            )
+
+        return jsonify({
+            "code":         code,
+            "token":        token,
+            "category":     room["category"],
+            "status":       room["status"],
+            "participants": participants,
+        }), 200
+    except Exception as e:
+        print(f"[join_room] hata: {e}")
+        return jsonify({"error": "Odaya katılınamadı"}), 400
 
 
 @bp.route("/rooms/<code>/fcm-token", methods=["POST"])
