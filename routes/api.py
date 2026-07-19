@@ -237,10 +237,12 @@ _GOOGLE_TYPES = {
         "night_club", "bar", "comedy_club", "karaoke", "video_arcade",
         "amusement_center", "cafe",
     ],
+    "cafe": ["cafe", "coffee_shop"],
 }
 
 _GOOGLE_EXCLUDED_TYPES = {
     "food": ["gas_station", "supermarket", "convenience_store", "lodging"],
+    "cafe": ["restaurant", "pizza_restaurant", "bakery", "fast_food_restaurant"],
 }
 
 
