@@ -10,6 +10,7 @@ def get_db():
     conn = sqlite3.connect(Config.DATABASE, timeout=10, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
     conn.execute("PRAGMA foreign_keys = ON")
     try:
         yield conn
@@ -82,6 +83,15 @@ def init_db():
                 conn.execute(_sql)
             except Exception:
                 pass
+
+        # Indexes — foreign key / lookup columns hit on every request
+        conn.executescript("""
+            CREATE INDEX IF NOT EXISTS idx_participants_room_id   ON participants(room_id);
+            CREATE INDEX IF NOT EXISTS idx_participants_device_id ON participants(device_id);
+            CREATE INDEX IF NOT EXISTS idx_places_room_id         ON places(room_id);
+            CREATE INDEX IF NOT EXISTS idx_votes_room_id          ON votes(room_id);
+            CREATE INDEX IF NOT EXISTS idx_votes_place_id         ON votes(place_id);
+        """)
 
 
 # --- Room ---
