@@ -232,6 +232,18 @@ def get_room_places(room_id):
         return conn.execute("SELECT * FROM places WHERE room_id = ?", (room_id,)).fetchall()
 
 
+def add_custom_place(room_id, name, lat=None, lng=None, address="Katılımcı önerisi"):
+    """Katılımcı tarafından elle eklenen mekan — mevcut mekanları/oyları silmez."""
+    with get_db() as conn:
+        cur = conn.execute(
+            """INSERT INTO places (room_id, osm_id, name, category, lat, lng, address)
+               VALUES (?, NULL, ?, 'custom', ?, ?, ?)""",
+            (room_id, name, lat, lng, address)
+        )
+        place_id = cur.lastrowid
+        return conn.execute("SELECT * FROM places WHERE id = ?", (place_id,)).fetchone()
+
+
 # --- Votes ---
 
 def cast_vote(room_id, participant_id, place_id, value):

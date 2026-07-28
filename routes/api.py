@@ -821,6 +821,34 @@ def flutter_vote(code):
     return jsonify({"ok": True, "summary": summary})
 
 
+@bp.route("/flutter/room/<code>/add_place", methods=["POST"])
+def flutter_add_place(code):
+    room = models.get_room(code)
+    if not room:
+        return jsonify({"error": "Oda bulunamadı"}), 404
+    if room["status"] != "voting":
+        return jsonify({"error": "Mekan eklemek için oylama başlamış olmalı"}), 400
+
+    data        = _flutter_body()
+    participant = _flutter_participant(data, room["id"])
+    if not participant:
+        return jsonify({"error": "Geçersiz token"}), 403
+
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "Mekan adı gerekli"}), 400
+    name = name[:120]
+
+    row   = models.add_custom_place(room["id"], name, room["lat"], room["lng"])
+    place = _place_to_dict(row)
+
+    socketio.emit("places_loaded", {
+        "places": [_place_to_dict(p) for p in models.get_room_places(room["id"])],
+    }, to=code)
+
+    return jsonify({"ok": True, "place": place}), 200
+
+
 @bp.route("/flutter/room/<code>/finish", methods=["POST"])
 def flutter_finish(code):
     room = models.get_room(code)
