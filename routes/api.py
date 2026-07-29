@@ -241,7 +241,7 @@ _GOOGLE_TYPES = {
 }
 
 _GOOGLE_EXCLUDED_TYPES = {
-    "food": ["gas_station", "supermarket", "convenience_store", "lodging"],
+    "food": ["gas_station", "supermarket", "convenience_store", "lodging", "fast_food_restaurant"],
     "cafe": ["restaurant", "pizza_restaurant", "bakery", "fast_food_restaurant"],
 }
 
