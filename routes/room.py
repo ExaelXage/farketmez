@@ -13,6 +13,11 @@ def index():
     return render_template("index.html")
 
 
+@bp.route("/privacy-policy")
+def privacy_policy():
+    return render_template("privacy_policy.html")
+
+
 @bp.route("/create", methods=["POST"])
 def create():
     nickname = request.form.get("nickname", "").strip()

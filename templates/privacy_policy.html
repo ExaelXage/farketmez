@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Farketmez — Gizlilik Politikası / Privacy Policy{% endblock %}
+
+{% block head %}
+<style>
+  .policy-card { max-width: 760px; margin: 0 auto; }
+  .policy-card h1 { font-size: 1.6rem; margin-bottom: .25rem; }
+  .policy-card h2 { font-size: 1.15rem; margin-top: 1.6rem; margin-bottom: .5rem; color: var(--accent); }
+  .policy-card p, .policy-card li { color: var(--text-muted); line-height: 1.6; }
+  .policy-card ul { padding-left: 1.2rem; margin: .4rem 0; }
+  .policy-updated { font-size: .8rem; color: var(--text-muted); margin-bottom: 1rem; }
+  .lang-switch { display: flex; gap: .5rem; justify-content: center; margin-bottom: 1.5rem; }
+  .lang-switch a {
+    padding: .4rem .9rem; border: 1px solid var(--border); border-radius: 999px;
+    font-size: .82rem; color: var(--text-muted);
+  }
+  .lang-switch a.active { border-color: var(--accent); color: var(--accent); }
+  hr.policy-divider { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card policy-card">
+  <div class="lang-switch">
+    <a href="#tr" class="active">Türkçe</a>
+    <a href="#en">English</a>
+  </div>
+
+  <section id="tr">
+    <h1>Gizlilik Politikası</h1>
+    <p class="policy-updated">Son güncelleme: 4 Ağustos 2026</p>
+
+    <p>
+      Farketmez ("uygulama"), arkadaş gruplarının yakınlardaki mekanlar arasından
+      oylama yaparak ortak bir karara varmasını sağlayan bir hizmettir. Bu sayfa,
+      uygulamayı kullanırken hangi verilerin nasıl işlendiğini açıklar.
+    </p>
+
+    <h2>Topladığımız Veriler</h2>
+    <ul>
+      <li>
+        <strong>Konum verisi:</strong> Yakınınızdaki mekanları önerebilmek için,
+        izniniz dahilinde cihazınızın anlık konumu kullanılır. Konum verisi yalnızca
+        mekan arama isteği sırasında kullanılır ve sunucularımızda kalıcı olarak
+        saklanmaz.
+      </li>
+      <li>
+        <strong>Oda ve oylama bilgileri:</strong> Oluşturduğunuz takma ad, oda kodu
+        ve verdiğiniz oylar, yalnızca oturum süresince ilgili odadaki katılımcılarla
+        paylaşılır.
+      </li>
+    </ul>
+
+    <h2>Üçüncü Taraf Servisler</h2>
+    <p>
+      Mekan bilgilerini sunabilmek için Google Places API ve OpenStreetMap /
+      Nominatim gibi üçüncü taraf harita ve yer servisleri kullanılmaktadır.
+      Mekan arama isteğinizin bir parçası olarak konum bilginiz bu servislere
+      iletilebilir. Bu servislerin kendi gizlilik politikaları geçerlidir.
+    </p>
+
+    <h2>Veri Saklama</h2>
+    <p>
+      Farketmez, konum verinizi veya kimliğinizi tanımlayan bilgileri kalıcı
+      olarak saklamaz. Oda ve oylama verileri, oturumun doğal akışı için geçici
+      olarak tutulur ve düzenli aralıklarla temizlenir.
+    </p>
+
+    <h2>İletişim</h2>
+    <p>
+      Gizlilik politikasıyla ilgili sorularınız için bize
+      <a href="mailto:fgokayyurt@gmail.com">fgokayyurt@gmail.com</a> adresinden
+      ulaşabilirsiniz.
+    </p>
+  </section>
+
+  <hr class="policy-divider">
+
+  <section id="en">
+    <h1>Privacy Policy</h1>
+    <p class="policy-updated">Last updated: August 4, 2026</p>
+
+    <p>
+      Farketmez ("the app") helps groups of friends decide where to go by voting
+      on nearby places together. This page explains what data is processed while
+      you use the app.
+    </p>
+
+    <h2>Data We Collect</h2>
+    <ul>
+      <li>
+        <strong>Location data:</strong> With your permission, your device's
+        current location is used to suggest nearby places. Location data is only
+        used for the duration of a place search request and is not permanently
+        stored on our servers.
+      </li>
+      <li>
+        <strong>Room and voting information:</strong> The nickname you choose,
+        the room code, and your votes are shared only with participants of that
+        room for the duration of the session.
+      </li>
+    </ul>
+
+    <h2>Third-Party Services</h2>
+    <p>
+      To provide place information, Farketmez uses third-party map and place
+      services such as the Google Places API and OpenStreetMap / Nominatim.
+      Your location may be sent to these services as part of a place search
+      request. These services have their own privacy policies.
+    </p>
+
+    <h2>Data Retention</h2>
+    <p>
+      Farketmez does not permanently store your location or identifying
+      information. Room and voting data is kept temporarily to support the
+      session and is regularly cleared.
+    </p>
+
+    <h2>Contact</h2>
+    <p>
+      If you have questions about this privacy policy, please contact us at
+      <a href="mailto:fgokayyurt@gmail.com">fgokayyurt@gmail.com</a>.
+    </p>
+  </section>
+</div>
+{% endblock %}
